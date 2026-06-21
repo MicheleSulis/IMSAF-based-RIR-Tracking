@@ -91,6 +91,17 @@ rec_test = synthesis_fb(sub_test, prototype_dft_filter, I, D);
 delay_calib = delay_calib - 1; % Ritardo causato dal banco filtri
 scale_factor = 1 / max_val; % Fattore di scala causato dal banco filtri
 
+% Filtro di equalizzazione inverso usato per compensare le non idealità dei
+% filtri
+
+% Il filtro di equalizzazione viene ottenuto invertendo la trasformata
+% dell'impulso fittizio transitato attraverso banco di analisi e sintesi.
+% In ricostruzione, poi, si moltiplicherà la trasformata della RIR fullband
+% e si ritornerà nel tempo
+FFT_len = 16384; % Potenza di 2 sufficientemente elevata
+G_fb = fft(rec_test, FFT_len);
+inv_G_fb = 1 ./ G_fb;
+
 for k=1:K_len
     for i=1:I
         s_i_state(:, i) = [s_subband(k, i); s_i_state(1:end-1, i)];
@@ -148,7 +159,12 @@ for k=1:K_len
 
         % Implementazione tramite convoluzione col filtro prototipo
         H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_subband, I, D);
-        H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
+
+        % Equalizzazione della RIR
+        H_freq = fft(H_recon_raw, FFT_len);
+        H_recon_eq = real(ifft(H_freq .* inv_G_fb));
+        H_recon = H_recon_eq(1:K);
+        % H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 
         norm_mis(k/100) = 20*log10(norm(H-H_recon, 'fro')/norm(H, 'fro'));
     end
@@ -163,7 +179,11 @@ end
 H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_subband, I, D);
 
 % Compensazione dei ritardi e della scalatura introdotti dai filtri
-H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
+% H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
+% Equalizzazione della RIR
+H_freq = fft(H_recon_raw, FFT_len);
+H_recon_eq = real(ifft(H_freq .* inv_G_fb));
+H_recon = H_recon_eq(1:K);
 
 figure;
 plot(H);
