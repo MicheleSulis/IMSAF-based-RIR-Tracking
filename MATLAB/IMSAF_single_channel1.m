@@ -5,13 +5,16 @@ L = 1; % numero di altoparlanti (numero di canali)
 M = 1; % numero di microfoni
 I = 64; % numero di sottobande
 D = 16; % fattore di decimazione
-V = 6*I+1; % lunghezza del filtro prototipo per il banco DFT
+% V = 6*I+1; % lunghezza del filtro prototipo per il banco DFT
+V = 129;
 P = 2;
 % frameSize = 4096;
 N = 300000; % lunghezza di x
 mu_h = 0.5;
 delta_h = 1e-5;  
 delta_ap = 1e-4; 
+% delta_h = 0.1;
+% delta_ap = 0.1;
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
 
@@ -23,11 +26,18 @@ H_original_peak = max(abs(H));
 H = H / H_original_peak;
 
 % RIR simulata per test
-% H = zeros(128, 1);
-% H(10) = 1; H(20) = -0.5; H(40) = 0.2; 
+% H = zeros(8192, 1);
+% H(10) = 1; 
+% H(20) = -0.5; 
+% H(40) = 0.2; 
 
 K = length(H);
-Ki = ceil((K + V - 1) / D);
+% if (D > 1)
+%     Ki = ceil((K + V - 1) / D);
+% else
+%     Ki = ceil(K/D);
+% end
+Ki = ceil(K/D);
 x = randn(N, 1);
 % frameNumber = ceil(length(x)/frameSize);
 s_subband = zeros(L*Ki, I); % matrice di I colonne, in cui la colonna i contiene
@@ -47,14 +57,15 @@ H_subband = zeros(I, Ki); % Dimensione I x Ki
 % l'algoritmo converge dopo 1000 campioni
 
 % prototype_dft_filter = fir1(V-1, 1/I);
-prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 12));
+% prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 12));
 % prototype_dft_filter = firceqrip(V-1, 1/I, [0.05 0.03]);
-prototype_dft_filter = prototype_dft_filter / sum(prototype_dft_filter);
+% prototype_dft_filter = prototype_dft_filter / sum(prototype_dft_filter);
 
 % Parametri rcosdesign
-% beta = 0.25;
-% span = (V-1)/I;
-% prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
+beta = 0.5;
+span = 128;
+prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
+prototype_dft_filter = prototype_dft_filter / sqrt(I);
 
 % Plot della risposta del filtro prototipo
 figure;
@@ -161,10 +172,10 @@ for k=1:K_len
         H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_subband, I, D);
 
         % Equalizzazione della RIR
-        H_freq = fft(H_recon_raw, FFT_len);
-        H_recon_eq = real(ifft(H_freq .* inv_G_fb));
-        H_recon = H_recon_eq(1:K);
-        % H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
+        % H_freq = fft(H_recon_raw, FFT_len);
+        % H_recon_eq = real(ifft(H_freq .* inv_G_fb));
+        % H_recon = H_recon_eq(1:K);
+        H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 
         norm_mis(k/100) = 20*log10(norm(H-H_recon, 'fro')/norm(H, 'fro'));
     end
@@ -181,9 +192,10 @@ H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_subband, I, D);
 % Compensazione dei ritardi e della scalatura introdotti dai filtri
 % H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 % Equalizzazione della RIR
-H_freq = fft(H_recon_raw, FFT_len);
-H_recon_eq = real(ifft(H_freq .* inv_G_fb));
-H_recon = H_recon_eq(1:K);
+% H_freq = fft(H_recon_raw, FFT_len);
+% H_recon_eq = real(ifft(H_freq .* inv_G_fb));
+% H_recon = H_recon_eq(1:K);
+H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 
 figure;
 plot(H);
@@ -200,6 +212,12 @@ if (normalized_mis_flag)
     title('Normalized Misalignment');
     grid on;
 end
+
+figure;
+plot(abs(fft(H)));
+hold on;
+plot(abs(fft(H_recon)));
+legend("Real RIR", "Estimated RIR");
 
 
 %% Banchi di analisi e sintesi
