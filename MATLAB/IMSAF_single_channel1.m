@@ -7,23 +7,26 @@ I = 64; % numero di sottobande
 D = 16; % fattore di decimazione
 % V = 6*I+1; % lunghezza del filtro prototipo per il banco DFT
 V = 129;
+
 P = 2;
 % frameSize = 4096;
 N = 300000; % lunghezza di x
 mu_h = 0.5;
-delta_h = 1e-5;  
-delta_ap = 1e-4; 
 % delta_h = 0.1;
 % delta_ap = 0.1;
+delta_h = 1e-5; 
+epsilon = 1e-5;
+eps_reg = 1e-6;
+delta_ap = 1e-4;
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
 
-fid = fopen("IR\IR1_2.f64");
+fid = fopen("IR/IR1_1.f64");
 H = fread(fid, 'double');
 fclose(fid);
 % Normalizzazione di H
-H_original_peak = max(abs(H));
-H = H / H_original_peak;
+% H_original_peak = max(abs(H));
+% H = H / H_original_peak;
 
 % RIR simulata per test
 % H = zeros(8192, 1);
@@ -87,7 +90,7 @@ u_ij = zeros(Ki,1);
 norm_mis = zeros(1, floor(K_len/100));
 
 % Calibrazione per il calcolo dei ritardi tramite impulso di test
-impulse_len = K + 2*V;
+impulse_len = K + 2 * V;
 test_impulse = zeros(impulse_len, 1);
 test_impulse(1) = 1;
 
@@ -109,9 +112,21 @@ scale_factor = 1 / max_val; % Fattore di scala causato dal banco filtri
 % dell'impulso fittizio transitato attraverso banco di analisi e sintesi.
 % In ricostruzione, poi, si moltiplicherà la trasformata della RIR fullband
 % e si ritornerà nel tempo
-FFT_len = 16384; % Potenza di 2 sufficientemente elevata
-G_fb = fft(rec_test, FFT_len);
-inv_G_fb = 1 ./ G_fb;
+
+%FFT_len = 16384; % Potenza di 2 sufficientemente elevata
+%G_fb = fft(rec_test, FFT_len);
+
+% L'inversione della trasformata è regolarizzata da un epsilon per non
+% farla divergere nei punti in cui G_fb -> 0. È importante calcolare la
+% forma estesa e non 1 ./ (G_fb + eps_reg) per non alterare la fase.
+
+%inv_G_fb = conj(G_fb) ./ (abs(G_fb).^2 + eps_reg);
+
+% Array dei pesi sottobanda normalizzati (precalcolo dei pesi:
+% implementazione statica).
+sigma_i = sum(abs(s_subband).^2);
+w = 1 ./ (sigma_i + epsilon);
+w = w * I ./ sum(w);
 
 for k=1:K_len
     for i=1:I
@@ -119,17 +134,19 @@ for k=1:K_len
         s_ij = s_i_state(:, i);
         S_j = S_i_memory(:, :, i);
         % In MATLAB invece di inv() è consigliabile usare l'operatore \ che
-        % risolve per x il sistema Ax=b
+        % risolve per x il sistema Ax=b, in quanto non è necessario
+        % calcolare l'intera matrice inversa per poi moltiplicarla per un
+        % vettore.
 
         % A rigore, si deve calcolare a = A^{-1}b con A = (S_j' * S_j) e b
         % = (S_j' * u_ij). Questo sistema può essere portato nella forma
-        % Ax=b moltiplicando entrambi i membi per A, e ottenendo quindi
+        % Ax=b moltiplicando entrambi i membri per A, e ottenendo quindi
         % (S_j' * S_j) a = (S_j' * u_ij). Per funzionamento dell'operatore
         % \, quindi, a = (S_j' * S_j) \ (S_j'* u_ij).
 
         % NOTA: nell'articolo scrivono che a_i dipende da u ma poi lo
         % definiscono come "la proiezione ai minimi quadrati di s_i su
-        % S_i", non è chiaro quale sia la formula corretta
+        % S_i", non è chiaro quale sia la formula corretta.
 
         % L'aggiunta di delta_ap*eye(P) somma una costante sulla diagonale
         % di S_j' * S_j, spostando i suoi autovalori dallo zero e evitando
@@ -141,8 +158,8 @@ for k=1:K_len
         e_k(k, i) = y_subband(k, i) - H_subband(i, :) * s_ij;
         norm_u = norm(u_ij)^2;
 
-        % andrebbero implementati i pesi w_i
-        H_subband(i, :) = H_subband(i, :) + mu_h * e_k(k,i) * u_ij' / (norm_u + delta_h);
+        % Nota: nel caso di x rumore bianco i pesi sono pressoché unitari
+        H_subband(i, :) = H_subband(i, :) + mu_h * w(i) * e_k(k,i) * u_ij' / (norm_u + delta_h);
     end
     
     % Normalized misalignment calcolato ogni 100 campioni per limitare la
@@ -154,11 +171,11 @@ for k=1:K_len
         % ricostruisce la RIR partendo da tali uscite
 
         % In alternativa, la H fullband può essere ricostruita facendo
-        % upsampling del segnale in sottobanda e calcolandone la
-        % convoluzione con i filtri di analisi e sintesi. Poiché la
-        % convoluzione è lineare, è possibile precalcolare la convoluzione
-        % dei filtri di analisi e sintesi e poi calcolare una sola
-        % convoluzione per ogni sottobanda
+        % upsampling della RIR stimata in sottobanda e calcolandone la 
+        % convoluzione con i filtri di analisi e sintesi. 
+        % Poiché la convoluzione è lineare, è possibile precalcolare la 
+        % convoluzione dei filtri di analisi e sintesi e poi calcolare una 
+        % sola convoluzione per ogni sottobanda.
 
 
         % Implementazione con filtraggio degli impulsi
@@ -277,7 +294,7 @@ function w_full = RIR_reconstruction(hp, H_subband, I, D)
     % H_subband: matrice IxKi che contiene le componenti subband della RIR
     % I: numero di sottobande
     % D: fattore di decimazione
-    % delay: delay introdotto dai banchi filtri
+    % delay: delay introdotto dai banchi filtro
 
     % Assicura che il hp sia un vettore colonna
     hp = hp(:); 
@@ -305,7 +322,7 @@ function w_full = RIR_reconstruction(hp, H_subband, I, D)
         % w_base = conv(conv(hp, w_i_upsampled), hp);
         w_base = conv(w_i_upsampled, combined_filter);
         
-        % Modulazione complessa del risultato finale fulllband
+        % Modulazione complessa del risultato finale fullband
         t_i = w_base .* exp(1i * 2 * pi * i * t_total_idx / I);
         
         % Accumulo

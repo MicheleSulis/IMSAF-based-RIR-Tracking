@@ -1,0 +1,107 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{float}
+
+\title{Confronto tra filtri prototipo per il banco filtri\\
+	nella stima della RIR in sottobande}
+\author{Michele Sulis \and Mauro Michele Maria Costantino}
+\date{\today}
+
+\begin{document}
+	
+	\maketitle
+	
+	\section{Introduzione}
+	
+	Questa relazione confronta due scelte di filtro prototipo per il banco DFT
+	di analisi/sintesi utilizzato nella stima in sottobande della risposta
+	all'impulso della stanza (RIR), con algoritmo di tracking di tipo IMSAF.
+	
+	L'obiettivo è verificare se il banco filtri, di per sé, sia in grado di
+	garantire una ricostruzione accurata della RIR senza ricorrere a una
+	correzione a valle (equalizzazione tramite inversione della risposta del
+	banco). Si confrontano:
+
+	\begin{itemize}
+		\item un prototipo passa-basso progettato con \texttt{fir1}
+		(finestra di Kaiser), e
+		\item un prototipo a coseno rialzato.
+	\end{itemize}
+
+	In entrambi i casi il banco utilizza $I = 64$ sottobande con fattore di
+	decimazione $D = 16$ (sovracampionamento di fattore 4). Le prestazioni sono
+	valutate tramite il normalized misalignment (NM) e il confronto tra RIR
+	ricostruita ed esatta sia nel tempo che in frequenza.
+	
+	\section{Confronto dei risultati}
+	
+	\subsection{Normalized misalignment (NM)}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/nm_kaiser12}
+		\caption{Andamento del normalized misalignment durante l'adattamento
+			con prototipo \texttt{fir1}.}
+		\label{fig:nm_fir1}
+	\end{figure}
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/nm_rcos}
+		\caption{Andamento del normalized misalignment durante l'adattamento
+			con prototipo coseno rialzato.}
+		\label{fig:nm_rcos}
+	\end{figure}
+	
+	Con il prototipo coseno rialzato il NM decresce in modo regolare lungo tutta
+	la durata dell'adattamento, scendendo fino a circa \SI{-45}{\decibel} senza
+	mostrare segni di saturazione (\SI{-51}{\decibel} dopo circa 500 iterazioni). Con il prototipo \texttt{fir1}, invece, il
+	comportamento risulta più sensibile alla scelta dei parametri, in
+	particolare dell'ordine del filtro, e in diverse configurazioni la curva
+	tende a spianare verso un valore limite più alto. Il banco basato sul coseno
+	rialzato presenta quindi un comportamento complessivamente più regolare e
+	prevedibile.
+	
+	\subsection{RIR ricostruita}
+	
+	La RIR ricostruita segue fedelmente quella reale con entrambi i prototipi:
+	nel dominio del tempo le due stime risultano praticamente sovrapposte alla
+	RIR esatta, al punto da rendere poco informativo riportare separatamente i
+	due casi. Si mostra pertanto una sola ricostruzione rappresentativa.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\textwidth]{plots/rir_time}
+		\caption{RIR reale (blu) e RIR stimata (rosso) nel dominio del tempo.}
+		\label{fig:rir_time}
+	\end{figure}
+	
+	\subsection{Spettro}
+	
+	Anche nel dominio della frequenza il modulo della RIR stimata si sovrappone
+	a quello della RIR esatta per entrambi i prototipi, senza differenze
+	apprezzabili tra i due casi. Si riporta quindi un solo confronto.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum}
+		\caption{Modulo della trasformata della RIR reale (blu) e stimata
+			(rosso).}
+		\label{fig:rir_spectrum}
+	\end{figure}
+	
+	\section{Conclusioni}
+	
+	Cambiando il filtro prototipo del banco e ottimizzando i parametri, si è
+	osservato che il banco basato su un prototipo a coseno rialzato fornisce un
+	comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1},
+	permettendo al NM di scendere fino a circa \SI{-51}{\decibel} senza ricorrere
+	a una correzione a valle basata sull'inversione della risposta del banco.
+	
+\end{document}
