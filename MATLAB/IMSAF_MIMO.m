@@ -8,7 +8,6 @@ L_plotted = 2;
 I = 8; % numero di sottobande
 D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
-% frameSize = 4096;
 % N = 200000; % lunghezza di x
 mu_h = 0.2;
 delta_h = 1e-5;  
@@ -16,7 +15,17 @@ delta_ap = 1e-1;
 K = 256; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
 fs = 16000; % Frequenza di campionamento (necessaria per la modulazione di fase)
 N = fs * 10; % Permette di scegliere N in secondi a partire da fs
-V = 256;
+V = 256; % Usato solo per filtri fatti con fir1
+
+% Flag di test:
+% - 'true': genera segnali di test completamente incorrelati su tutti i
+% canali. Utile per mostrare che la struttura dell'algoritmo di tracking è
+% corretta
+% - 'false': il segnale di ingresso x (assunto rumore bianco) viene
+% replicato su tutti i canali, che quindi sono tra loro fortemente
+% correlati. Nonostante la modulazione di fase, il NM spiana a circa -9dB e
+% bisogna capire perché
+x_test = true;
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
 norm_iteration_factor = 100;
@@ -80,14 +89,14 @@ s_subband_base = repmat(x_mono_subband, 1, 1, L);
 % Modulazione di fase per decorrelare
 s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
-x_speakers = zeros(N_recon, L);
-for l = 1:L
-    x_speakers(:, l) = synthesis_fb(s_subband_decorr(:, :, l), prototype_dft_filter, I, D);
+if (x_test)
+    x_speakers = randn(N_recon, L);
+else
+    x_speakers = zeros(N_recon, L);
+    for l = 1:L
+        x_speakers(:, l) = synthesis_fb(s_subband_decorr(:, :, l), prototype_dft_filter, I, D);
+    end
 end
-
-% Prova con segnali completamente incorrelati su ogni canale. In questo
-% caso la stima è perfetta e l'algoritmo funziona bene
-x_speakers = randn(N_recon, L);
 % Generazione dei segnali catturati dai microfoni
 y = zeros(N_recon, M);
 for m=1:M
