@@ -114,6 +114,19 @@ elseif (x_type == 2)
     end
 end
 
+% Rumore marrone: sono riportate le prestazioni in termini di NM
+% Canali scorrelati
+%   -55dB dopo 383 iterazioni @ P=0;
+%   -55dB dopo  82 iterazioni @ P=2.
+% Canali correlati
+%    -8dB dopo 470 iterazioni @ P=0;
+%    -8dB dopo 326 iterazioni @ P=2.
+% In entrambi i casi i floor sono paragonabili tra di loro e rispetto a
+% x_mono = rumore bianco. Le convergenze sono rispettivamente 4.67 e 1.44
+% volte più veloci passando da P=0 a P=2, provando, come affermato 
+% nell'articolo che lo sbiancamento migliora la velocità di convergenza e 
+% non il floor del NM.
+x_mono = filter(1,[1 -0.9],x_mono);
 
 % Scomposizione in sottobande
 % x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
