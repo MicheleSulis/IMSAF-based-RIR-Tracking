@@ -9,23 +9,26 @@ I = 8; % numero di sottobande
 D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
 % N = 200000; % lunghezza di x
-mu_h = 0.2;
-delta_h = 1e-5;  
+mu_h = 0.32;
+delta_h = 1e-3;  
 delta_ap = 1e-1;
-K = 256; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
+K = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
+offset = 100; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
 fs = 16000; % Frequenza di campionamento (necessaria per la modulazione di fase)
-N = fs * 10; % Permette di scegliere N in secondi a partire da fs
-V = 256; % Usato solo per filtri fatti con fir1
+N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 
 % Flag di test:
 % - 'true': genera segnali di test completamente incorrelati su tutti i
 % canali. Utile per mostrare che la struttura dell'algoritmo di tracking è
 % corretta
-% - 'false': il segnale di ingresso x (assunto rumore bianco) viene
-% replicato su tutti i canali, che quindi sono tra loro fortemente
-% correlati. Nonostante la modulazione di fase, il NM spiana a circa -9dB e
-% bisogna capire perché
-x_test = true;
+% - 'false': viene usato un segnale reale, inviato sui vari canali.
+x_test = false;
+
+% Flag per scegliere il segnale di ingresso quando x_test è false
+x_type = 2;
+% 1: segnale mono replicato su tutti i canali, caricato dalla libreria di
+% MATLAB
+% 2: segnale stereo inviato a canali separati, preso da EBU SQUAM
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
 norm_iteration_factor = 100;
@@ -54,38 +57,69 @@ for m=1:M
         fid = fopen("IR\IR1_"+string(file_index)+".f64");
         RIR = fread(fid, 'double');
         fclose(fid);
-        H_original_peak = max(abs(RIR(1:K)));
-        H(:, m, l) = RIR(1:K) / H_original_peak;
+        H_original_peak = max(abs(RIR(offset+1:offset+K)));
+        H(:, m, l) = RIR(offset+1:offset+K) / H_original_peak;
         % temp_H = zeros(K, 1);
         % temp_H(20) = 1;
         % H(:, m, l) = temp_H;
         file_index = file_index + 1;
     end
 end
-
-% RIR simulata per test
-% H = zeros(8192, 1);
-% H(10) = 1; 
-% H(20) = -0.5; 
-% H(40) = 0.2; 
-
-
-% Ki = ceil(K/D);
 Ki = ceil((K + V)/D);
 K_len = floor((N - 1) / D) + 1;
 N_recon = (K_len - 1) * D + 1;
 H_hat = zeros(M, L*Ki);
 s_subband_decorr = zeros(K_len, I, L);
 s_subband_base = zeros(K_len, I, L);
-% x = randn(N, 1);
+
 % Generazione del segnale di eccitazione (a singolo canale, viene reso
 % multicanale dal SFC e poi decorrelato)
-x_mono = randn(N, 1);
+% x_mono = randn(N, 1);
+
+if (x_type == 1)
+    load handel.mat; x_audio = y; fs_audio = Fs;
+    if fs_audio ~= fs
+        x_audio = resample(x_audio, fs, fs_audio);
+    end
+    if length(x_audio) >= N
+        x_mono = x_audio(1:N);
+    else
+        x_mono = repmat(x_audio, ceil(N/length(x_audio)), 1);
+        x_mono = x_mono(1:N);
+    end
+    x_mono = x_mono / std(x_mono); 
+    x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
+    s_subband_base = repmat(x_mono_subband, 1, 1, L);
+elseif (x_type == 2)
+    [x_audio, fs_audio] = audioread("SampleAudio\69.flac");
+    
+    if fs_audio ~= fs
+        x_audio = resample(x_audio, fs, fs_audio);
+    end
+    
+    if length(x_audio) >= N
+        x_stereo = x_audio(1:N, :);
+    else
+        x_stereo = repmat(x_audio, ceil(N/length(x_audio)), 1);
+        x_stereo = x_stereo(1:N, :);
+    end
+    
+    % Normalizzazione della potenza
+    x_stereo(:, 1) = x_stereo(:, 1) / std(x_stereo(:, 1));
+    x_stereo(:, 2) = x_stereo(:, 2) / std(x_stereo(:, 2));
+    
+    % Segnali stereo
+    for l = 1:L
+        s_subband_base(:,:,l) = analysis_fb(x_stereo(:, l), prototype_dft_filter, I, D);
+    end
+end
+
+
 % Scomposizione in sottobande
-x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
+% x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
 % Poiché il SFC non è implementaot, il segnale viene replicato sugli L
 % canali
-s_subband_base = repmat(x_mono_subband, 1, 1, L);
+% s_subband_base = repmat(x_mono_subband, 1, 1, L);
 % Modulazione di fase per decorrelare
 s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
@@ -120,12 +154,14 @@ end
 
 % Implementazione dei pesi
 sigma_i = zeros(I, 1);
-epsilon_w = 1e-5;
+%epsilon_w = 1e-5;
 
 for i = 1:I
     % Calcola la potenza media sull'intero asse temporale (dim 1) e su tutti i canali (dim 3)
     sigma_i(i) = mean(abs(s_subband(:, i, :)).^2, 'all'); 
 end
+
+epsilon_w = 0.01 * max(sigma_i);
 
 % Calcolo dei pesi inversamente proporzionali all'energia e normalizzati
 w_raw = 1 ./ (sigma_i + epsilon_w);
@@ -165,6 +201,17 @@ for k=1:K_len
              s_i_state(:, i, l) = [s_subband(k, i, l); s_i_state(1:end-1, i, l)];
              s_ij((l-1)*Ki+1:l*Ki) = s_i_state(:, i, l);
         end
+
+        norm_s = norm(s_ij)^2;
+        if norm_s < 1e-6
+            % Nei file digitali possono esserci dei silenzi che fanno
+            % divergere l'algoritmo. Se la norma è troppo bassa, passare al
+            % prossimo campione
+            S_i_mat = S_i_memory(:, :, i);
+            S_i_memory(:, :, i) = [s_ij, S_i_mat(:, 1:end-1)];
+            continue; 
+        end
+
         % In MATLAB invece di inv() è consigliabile usare l'operatore \ che
         % risolve per x il sistema Ax=b
 
@@ -261,8 +308,8 @@ end
 % Plot del NM
 if (normalized_mis_flag)
     figure;
-    plot(norm_mis);
-    xlabel(sprintf('Iteration Index (x%d)', norm_iteration_factor));
+    plot((1:length(norm_mis))*(norm_iteration_factor/fs), norm_mis);
+    xlabel('Iteration Time (s)');
     ylabel('NM (dB)');
     title(sprintf('Normalized Misalignment (MIMO %dx%d)', M, L));
     grid on;
@@ -433,6 +480,7 @@ function z_subband = phase_modulation_decorrelation(s_subband, D, fs)
     end
     % Conversione in radianti
     alpha_rad = alpha_deg * (pi / 180);
+    % alpha_rad = pi * ones(I, 1);
 
     for l = 1:L
         % Frequenza di modulazione f_l
