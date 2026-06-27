@@ -10,12 +10,12 @@ D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
 % N = 200000; % lunghezza di x
 mu_h = 0.2;
-delta_h = 1e-5;  
+delta_h = 1e-5;
 delta_ap = 1e-1;
 K = 256; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
 fs = 16000; % Frequenza di campionamento (necessaria per la modulazione di fase)
 N = fs * 10; % Permette di scegliere N in secondi a partire da fs
-V = 256; % Usato solo per filtri fatti con fir1
+%V = 256; % Usato solo per filtri fatti con fir1
 
 % Flag di test:
 % - 'true': genera segnali di test completamente incorrelati su tutti i
@@ -51,7 +51,7 @@ H = zeros(K, M, L);
 file_index = 1;
 for m=1:M
     for l=1:L
-        fid = fopen("IR\IR1_"+string(file_index)+".f64");
+        fid = fopen("IR/IR1_"+string(file_index)+".f64");
         RIR = fread(fid, 'double');
         fclose(fid);
         H_original_peak = max(abs(RIR(1:K)));
@@ -81,9 +81,24 @@ s_subband_base = zeros(K_len, I, L);
 % Generazione del segnale di eccitazione (a singolo canale, viene reso
 % multicanale dal SFC e poi decorrelato)
 x_mono = randn(N, 1);
+
+% Rumore marrone: sono riportate le prestazioni in termini di NM
+% Canali scorrelati
+%   -55dB dopo 383 iterazioni @ P=0;
+%   -55dB dopo  82 iterazioni @ P=2.
+% Canali correlati
+%    -8dB dopo 470 iterazioni @ P=0;
+%    -8dB dopo 326 iterazioni @ P=2.
+% In entrambi i casi i floor sono paragonabili tra di loro e rispetto a
+% x_mono = rumore bianco. Le convergenze sono rispettivamente 4.67 e 1.44
+% volte più veloci passando da P=0 a P=2, provando, come affermato 
+% nell'articolo che lo sbiancamento migliora la velocità di convergenza e 
+% non il floor del NM.
+x_mono = filter(1,[1 -0.9],x_mono);
+
 % Scomposizione in sottobande
 x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
-% Poiché il SFC non è implementaot, il segnale viene replicato sugli L
+% Poiché il SFC non è implementato, il segnale viene replicato sugli L
 % canali
 s_subband_base = repmat(x_mono_subband, 1, 1, L);
 % Modulazione di fase per decorrelare
