@@ -126,7 +126,7 @@ end
 % volte più veloci passando da P=0 a P=2, provando, come affermato 
 % nell'articolo che lo sbiancamento migliora la velocità di convergenza e 
 % non il floor del NM.
-x_mono = filter(1,[1 -0.9],x_mono);
+% x_mono = filter(1,[1 -0.9],x_mono);
 
 % Scomposizione in sottobande
 % x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
@@ -282,22 +282,14 @@ for k=1:K_len
         % convoluzione è lineare, è possibile precalcolare la convoluzione
         % dei filtri di analisi e sintesi e poi calcolare una sola
         % convoluzione per ogni sottobanda
-
-
-        % Implementazione con filtraggio degli impulsi
-        % y_sub_imp = zeros(size(sub_test));
-        % for i_sub = 1:I
-        %     y_sub_imp(:, i_sub) = filter(H_subband(i_sub, :), 1, sub_test(:, i_sub));
-        % end
-        % H_recon_raw = synthesis_fb(y_sub_imp, prototype_dft_filter, I, D);
-
-        % Implementazione tramite convoluzione col filtro prototipo
         H_recon_full = complex(zeros(K, M, L));
         for m=1:M
             for l=1:L
                 H_sub_ml = zeros(I, Ki);
                 H_sub_ml(:, :) = H_subband(:, m, ((l-1)*Ki+1):(l*Ki));
+                % Ricostruzione con convoluzione
                 % H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_sub_ml, I, D);
+                % Ricostruzione con filtraggio di impulsi in sottobande
                 H_recon_raw = extract_fullband_RIR(H_sub_ml, prototype_dft_filter, I, D, K);
                 H_recon_full(:, m, l) = scale_factor * H_recon_raw(delay_calib+1:delay_calib+K);
             end
