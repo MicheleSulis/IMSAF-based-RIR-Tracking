@@ -8,7 +8,6 @@ L_plotted = 2;
 I = 8; % numero di sottobande
 D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
-% N = 200000; % lunghezza di x
 mu_h = 0.32;
 delta_h = 1e-3;  
 delta_ap = 1e-1;
@@ -72,10 +71,6 @@ H_hat = zeros(M, L*Ki);
 s_subband_decorr = zeros(K_len, I, L);
 s_subband_base = zeros(K_len, I, L);
 
-% Generazione del segnale di eccitazione (a singolo canale, viene reso
-% multicanale dal SFC e poi decorrelato)
-% x_mono = randn(N, 1);
-
 if (x_type == 1)
     load handel.mat; x_audio = y; fs_audio = Fs;
     if fs_audio ~= fs
@@ -128,11 +123,6 @@ end
 % non il floor del NM.
 % x_mono = filter(1,[1 -0.9],x_mono);
 
-% Scomposizione in sottobande
-% x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
-% Poiché il SFC non è implementaot, il segnale viene replicato sugli L
-% canali
-% s_subband_base = repmat(x_mono_subband, 1, 1, L);
 % Modulazione di fase per decorrelare
 s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
@@ -178,7 +168,7 @@ epsilon_w = 0.01 * max(sigma_i);
 
 % Calcolo dei pesi inversamente proporzionali all'energia e normalizzati
 w_raw = 1 ./ (sigma_i + epsilon_w);
-w_i = w_raw / mean(w_raw); % Normalizzazione a 1
+w_i = w_raw / mean(w_raw); % Normalizzazione a I
 
 s_i_state = complex(zeros(Ki, I, L));       % Stato per l'impilamento dei campioni
 S_i_memory = complex(zeros(L*Ki, P, I));    % Matrice di decorrelazione con P stati passati
@@ -192,20 +182,22 @@ norm_mis = zeros(1, floor(K_len/100));
 u_ij = zeros(Ki,1);
 
 % Calibrazione per il calcolo dei ritardi tramite impulso di test
-impulse_len = K + 2*V;
-test_impulse = zeros(impulse_len, 1);
-test_impulse(1) = 1;
+% impulse_len = K + 2*V;
+% test_impulse = zeros(impulse_len, 1);
+% test_impulse(1) = 1;
 
 % Si genera una delta di Dirac e la si fa passare attraverso i banchi di
 % analisi e sintesi
-sub_test = analysis_fb(test_impulse, prototype_dft_filter, I, D);
-rec_test = synthesis_fb(sub_test, prototype_dft_filter, I, D);
-
-% Salvando valore e posizione del picco si ottengono sia il ritardo
-% introdotto dal banco filtri e sia il fattore di scala
-[max_val, delay_calib] = max(real(rec_test));
-delay_calib = delay_calib - 1; % Ritardo causato dal banco filtri
-scale_factor = 1 / max_val; % Fattore di scala causato dal banco filtri
+% sub_test = analysis_fb(test_impulse, prototype_dft_filter, I, D);
+% rec_test = synthesis_fb(sub_test, prototype_dft_filter, I, D);
+% 
+% % Salvando valore e posizione del picco si ottengono sia il ritardo
+% % introdotto dal banco filtri e sia il fattore di scala
+% [max_val, delay_calib] = max(real(rec_test));
+% delay_calib = delay_calib - 1; % Ritardo causato dal banco filtri
+% scale_factor = 1 / max_val; % Fattore di scala causato dal banco filtri
+delay_calib = V-1;
+scale_factor = D;
 
 for k=1:K_len
     for i=1:I
@@ -313,13 +305,14 @@ end
 % Plot del NM
 if (normalized_mis_flag)
     figure;
-    plot((1:length(norm_mis))*D*(norm_iteration_factor/fs), norm_mis);
-    % Secondo me serve il fattore D, perché ogni iterazione del loop in 
-    % sottobanda corrisponde a D campioni fullband (per la decimazione).
+    plot((1:length(norm_mis))*(norm_iteration_factor*D/fs), norm_mis);
+    % Serve il fattore D, perché ogni iterazione del loop in sottobanda 
+    % corrisponde a D campioni fullband (per la decimazione).
     % Se entra un segnale fullband di N=30*fs campioni, quindi che dura 30
     % secondi, e l'algoritmo lo processa tutto, all'ultima iterazione
     % devono essere trascorsi 30 secondi, prima segnava 15 s (D=2
     % mancante).
+    
     xlabel('Iteration Time (s)');
     ylabel('NM (dB)');
     title(sprintf('Normalized Misalignment (MIMO %dx%d)', M, L));
@@ -331,7 +324,8 @@ for m_plot=1:M_plotted
     for l_plot=1:L_plotted
         H_sub_ml = zeros(I, Ki);
         H_sub_ml(:, :) = H_subband(:, m_plot, ((l_plot-1)*Ki+1):(l_plot*Ki));
-        H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_sub_ml, I, D);
+        % H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_sub_ml, I, D);
+        H_recon_raw = extract_fullband_RIR(H_sub_ml, prototype_dft_filter, I, D, K);
         H_recon_example = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 
         figure;
@@ -412,8 +406,6 @@ function x_recon = synthesis_fb(subband_signals, hp, I, D)
         
         x_recon = x_recon + real(s_i);
     end
-    % Compensazione del guadagno
-    % x_recon = x_recon / D;
 end
 
 %% Ricostruzione della RIR fullband
