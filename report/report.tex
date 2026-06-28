@@ -10,6 +10,11 @@
 \usepackage{float}
 \usepackage[hidelinks]{hyperref}
 
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\definecolor{matlabblue}{rgb}{0.000,0.447,0.741}
+\definecolor{matlaborange}{rgb}{0.850,0.325,0.098}
+
 \usepackage[acronym, shortcuts]{glossaries}
 \newacronym{rir}{RIR}{Room Impulse Response}
 \newacronym{sfc}{SFC}{Sound Field Control}
@@ -77,87 +82,182 @@
 	
 	\subsubsection{Filtri prototipo}
 	Si confrontano due prototipi: un filtro passa-basso progettato con \texttt{fir1} (finestra di Kaiser) e un filtro a coseno rialzato.
-	La differenza rilevante risiede nella pendenza della banda di transizione: il coseno rialzato presenta una transizione più ripida rispetto al filtro di Kaiser, che si traduce in sottobande più selettive e quindi in una minore sovrapposizione tra bande adiacenti, con conseguente maggiore attenuazione dell'aliasing.
-	Entrambi i prototipi sono progettati per suddividere la banda in $I=64$ sottobande. 
-	Il filtro di Kaiser (Figura \ref{fig:mag_kaiser12}) è stato ottenuto con $\beta=12$ e 129 campioni, mentre il coseno rialzato (Figura \ref{fig:mag_rcos}) è stato ottenuto con $\beta=0.5$ e \texttt{span} pari a 128, per una lunghezza complessiva di 8193 campioni.
-	Le due lunghezze risultano sensibilmente diverse, fattore che concorre alla maggiore sensibilità del coseno rialzato.
-	Si segnala inoltre che, nelle sezioni successive, la lunghezza del prototipo a coseno rialzato è stata sensibilmente ridotta al fine di contenere il carico computazionale, mantenendo comunque una selettività adeguata.
+	
+	Entrambi i prototipi sono progettati per suddividere la banda in $I=64$ sottobande e, per garantire un confronto equo, hanno la stessa lunghezza di 1025 campioni.
+	Il filtro di Kaiser (Figura \ref{fig:mag_prot}, curva blu) è stato ottenuto con $\beta=1$, mentre il coseno rialzato (Figura \ref{fig:mag_prot}, curva arancio) con $\beta=0.6$ e \texttt{span} pari a 16.
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.8\textwidth]{plots/mag_kaiser12}
-		\caption{Risposta in frequenza (modulo) del prototipo \texttt{fir1} (finestra di Kaiser).}
-		\label{fig:mag_kaiser12}
-	\end{figure}
-	
-	\begin{figure}[H]
-		\centering
-		\includegraphics[width=0.8\textwidth]{plots/mag_rcos}
-		\caption{Risposta in frequenza (modulo) del prototipo a coseno rialzato.}
-		\label{fig:mag_rcos}
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Prototype Magnitude Response},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Normalized Frequency ($\times\pi$ rad/sample)},
+				ylabel={Magnitude (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=1,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.55\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick style={draw=none},
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/mag_kaiser.dat};
+				\addlegendentry{Kaiser prototype}
+				\addplot[matlaborange] table {plots/mag_rcos.dat};
+				\addlegendentry{Rcos prototype}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Risposta in frequenza (modulo) dei due prototipi a confronto, entrambi di lunghezza 1025 campioni.}
+		\label{fig:mag_prot}
 	\end{figure}
 	
 	\subsubsection{Confronto dei risultati}
 	
 	\paragraph{Normalized misalignment (NM)}
-	Con il prototipo a coseno rialzato il NM decresce in modo regolare lungo tutta la durata dell'adattamento, scendendo fino a circa \SI{-45}{\decibel} (Figura \ref{fig:nm_rcos}).
-	Con il prototipo \texttt{fir1}, invece, il comportamento risulta più sensibile alla scelta dei parametri, in particolare dell'ordine del filtro: in diverse configurazioni la curva tende a spianare verso un valore limite più alto (Figura \ref{fig:nm_fir1}).
+	A parità di lunghezza dei due prototipi, il NM evidenzia un comportamento nettamente diverso (Figura \ref{fig:nm_prot}).
+	Con il coseno rialzato il NM decresce in modo regolare lungo tutta la durata dell'adattamento, scendendo fino a circa \SI{-40}{\decibel}.
+	Con il prototipo Kaiser, invece, la curva tende a spianare verso un valore limite più alto, attorno a \SI{-20}{\decibel}.
 	
-	In particolare, il \texttt{fir1} raggiunge \SI{-32.5}{\decibel} a una velocità doppia rispetto al coseno rialzato, ma tale valore costituisce il \emph{plateau} a cui la curva si arresta, mentre il coseno rialzato continua a decrescere oltre.
-	Una possibile interpretazione della maggiore velocità del filtro Kaiser risiede nella sensibile differenza di lunghezza tra i due prototipi.
+	Poiché i due filtri hanno la stessa lunghezza, la differenza di prestazioni non è attribuibile a tale fattore, bensì alle proprietà del prototipo.
+	Da un lato, il coseno rialzato presenta una transizione più ripida (Figura \ref{fig:mag_prot}) che riduce la sovrapposizione tra sottobande adiacenti e quindi l'aliasing; dall'altro, soddisfa la condizione di complementarietà in potenza, per cui la somma dei moduli quadri delle risposte è prossima a una costante, garantendo una ricostruzione fedele del segnale che transita il banco.
+	Il filtro di Kaiser, non essendo progettato per soddisfare tale condizione, introduce invece un errore di ricostruzione residuo.
+	
+	Si è inoltre osservato che il filtro di Kaiser risulta fortemente sensibile alla scelta dei suoi parametri (ordine e $\beta$): piccole variazioni producono spostamenti significativi del floor del NM, talora con filtri di lunghezza maggiore che forniscono prestazioni peggiori.
+	L'individuazione di una configurazione adeguata richiede una ricerca per tentativi, mentre il coseno rialzato garantisce una ricostruzione accurata senza necessità di tuning.
 	
 	Il banco basato sul coseno rialzato presenta quindi un comportamento complessivamente più regolare e prevedibile. 
 	Le simulazioni sono state condotte assumendo una frequenza di campionamento $f_{s}=\SI{16}{\kilo\hertz}$.
 	
-	%TODO: i due plot li metto insieme con tikz (con maggiore spessore), per evidenziare meglio le loro differenze nei floor e dove si incrociano e rcos inizia a fare meglio di fir1
-	\begin{figure}[!ht]
+	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.8\textwidth]{plots/nm_kaiser12}
-		\caption{Andamento del normalized misalignment durante l'adattamento
-			con prototipo \texttt{fir1}.}
-		\label{fig:nm_fir1}
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=20,
+				ymax=-5, ymin=-45,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.55\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_kaiser.dat};
+				\addlegendentry{Kaiser prototype}
+				\addplot[matlaborange] table {plots/nm_rcos.dat};
+				\addlegendentry{Rcos prototype}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto del normalized misalignment tra i due prototipi, a parità di lunghezza (1025 campioni).}
+		\label{fig:nm_prot}
 	\end{figure}
-	
-	\begin{figure}[!ht]
-		\centering
-		\includegraphics[width=0.8\textwidth]{plots/nm_rcos}
-		\caption{Andamento del normalized misalignment durante l'adattamento
-			con prototipo coseno rialzato.}
-		\label{fig:nm_rcos}
-	\end{figure}
-	
-	\newpage
 	
 	\paragraph{RIR nel dominio del tempo}
-	La RIR ricostruita segue fedelmente quella reale con entrambi i prototipi: nel dominio del tempo le due stime risultano praticamente sovrapposte alla RIR esatta, al punto da rendere poco informativo riportare separatamente i due casi. Si mostra pertanto una sola ricostruzione rappresentativa (Figura \ref{fig:rir_time}).
+	Nel dominio del tempo (Figura \ref{fig:rir_time}) la RIR ricostruita con il coseno rialzato risulta praticamente sovrapposta a quella reale, al punto da essere indistinguibile.
+	La stima ottenuta con il prototipo Kaiser se ne discosta leggermente, ma le differenze nel dominio del tempo non sono particolarmente marcate.
+	Tale discrepanza emerge invece in modo più evidente nel dominio della frequenza, discusso di seguito.
 	
-	Per chiarezza di visualizzazione, la RIR è mostrata in una finestra di 128 campioni a partire da un offset di 100, in modo da scartare il ritardo di propagazione iniziale e centrare la rappresentazione sulla parte informativa della risposta.
-	Per quanto riguarda invece le sezioni relative al caso MIMO, le RIR sono effettivamente troncate a tale lunghezza; le motivazioni di questa scelta sono discusse nella sezione corrispondente.
+	Le RIR considerate hanno una lunghezza di 128 campioni, coerentemente con quanto fatto in letteratura \cite{11249060}.
 		
-	\begin{figure}[!ht]
+	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.8\textwidth]{plots/rir_time}
-		\caption{RIR reale (blu) e RIR stimata (rosso) nel dominio del tempo.}
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Time Domain Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Samples},
+				xmin=0,
+				ymax=1.1, ymin=-1,
+				ylabel={Normalized Amplitude},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.5\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[black] table [x index=0, y index=2] {plots/rir_time_kaiser_real.dat};
+				\addlegendentry{Real RIR}
+				\addplot[matlabblue] table [x index=0, y index=1] {plots/rir_time_kaiser_real.dat};
+				\addlegendentry{Kaiser}
+				\addplot[matlaborange] table [x index=0, y index=1] {plots/rir_time_rcos.dat};
+				\addlegendentry{Rcos}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto nel dominio del tempo tra la RIR reale e le RIR stimate con i due prototipi.}
 		\label{fig:rir_time}
 	\end{figure}
 	
-	\newpage
-	
 	\paragraph{RIR nel dominio della frequenza}
 	
-	Anche nel dominio della frequenza il modulo della RIR stimata si sovrappone a quello della RIR esatta per entrambi i prototipi, senza differenze apprezzabili tra i due casi. Si riporta quindi un solo confronto in Figura \ref{fig:rir_spectrum}.
+	Nel dominio della frequenza (Figura \ref{fig:rir_spectrum}) si apprezza meglio la differenza tra i due prototipi.
+	Il modulo della RIR stimata con il coseno rialzato si sovrappone fedelmente a quello della RIR reale su tutta la banda.
+	La stima ottenuta con il prototipo Kaiser ne segue solo l'andamento generale discostandosi visibilmente lungo l'intero spettro, mostrando le deviazioni più marcate oltre i \SI{6.7}{\kilo\hertz}.
 	
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum}
-		\caption{Modulo della trasformata della RIR reale (blu) e stimata
-			(rosso).}
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Frequency Response Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Frequency (Hz)},
+				ylabel={Magnitude (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=8000,
+				x tick label style={/pgf/number format/1000 sep={}},
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.55\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=1.1pt] table [x index=0, y index=2] {plots/rir_spectrum_rcos_real.dat};
+				\addlegendentry{Real RIR}
+				\addplot[matlabblue, line width=0.5pt] table [x index=0, y index=1] {plots/rir_spectrum_kaiser.dat};
+				\addlegendentry{Kaiser}
+				\addplot[matlaborange, line width=0.5pt] table [x index=0, y index=1] {plots/rir_spectrum_rcos_real.dat};
+				\addlegendentry{Rcos}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto nel dominio della frequenza tra la RIR reale e le RIR stimate con i due prototipi.}
 		\label{fig:rir_spectrum}
 	\end{figure}
 	
 	\paragraph{Conclusioni}
-	Dopo aver sperimentato diversi filtri prototipo per il banco e ottimizzato i parametri, si è osservato che il banco basato su un prototipo a coseno rialzato fornisce un comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1}, permettendo di scendere fino a circa \SI{-45}{\decibel}.
-	Pertanto, a partire dalle sezioni successive, si abbandonerà il \texttt{fir1} in favore del coseno rialzato, adottandone una versione di lunghezza ridotta per contenere il carico computazionale. %TODO: recuperare i dettagli del rcos in mimo.m e riportarli.
+	Dopo aver sperimentato diversi filtri prototipo per il banco e ottimizzato i parametri, si è osservato che il banco basato su un prototipo a coseno rialzato fornisce un comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1}, permettendo di scendere fino a circa \SI{-40}{\decibel}.
+	Pertanto, a partire dalle sezioni successive, si adotterà esclusivamente il coseno rialzato con $\beta=0.6$ e \texttt{span} pari a 16.
 	
 	\newpage
 	\subsection{Caso MIMO}
@@ -239,7 +339,7 @@
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum_mono.pdf}
-		\caption{Modulo della trasformata della RIR reale (blu) e stimata (rosso) con ingresso mono replicato sui canali.}
+		\caption{Modulo della trasformata della RIR reale (blu) e stimata (arancio) con ingresso mono replicato sui canali.}
 		\label{fig:rir_spec_mono}
 	\end{figure}
 
@@ -254,14 +354,10 @@
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum_stereo.pdf}
-		\caption{Modulo della trasformata della RIR reale (blu) e stimata (rosso) con ingresso stereo diversificato sui canali.}
+		\caption{Modulo della trasformata della RIR reale (blu) e stimata (arancio) con ingresso stereo diversificato sui canali.}
 		\label{fig:rir_spec_stereo}
 	\end{figure}
 	%TODO: aggiungere dettagli dell'algoritmo se me li sono dimenticati (oltre a quelli già descritti). Inserire NM, RIR nel tempo e in frequenza e i relativi commenti.
-	
-		
-	%\subsubsection{Decorrelazione tramite half-wave rectifier (HWR)}
-	%TODO: se ho tempo la implemento in MATLAB come prova (magari con \texttt{sound()} per sentire se effettivamente distorce il suono in maniera apprezzabile oppure no). Sempre se faccio in tempo e se i risultati sono accettabili la riporto, altrimenti questa sezione verrà cestinata.
 	
 	%\section{Implementazione (C/C++)}
 	%TODO?
