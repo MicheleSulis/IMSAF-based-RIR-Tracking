@@ -54,7 +54,7 @@ H = zeros(K, M, L);
 file_index = 1;
 for m=1:M
     for l=1:L
-        fid = fopen("IR\IR1_"+string(file_index)+".f64");
+        fid = fopen("IR/IR1_"+string(file_index)+".f64");
         RIR = fread(fid, 'double');
         fclose(fid);
         H_original_peak = max(abs(RIR(offset+1:offset+K)));
@@ -91,7 +91,7 @@ if (x_type == 1)
     x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
     s_subband_base = repmat(x_mono_subband, 1, 1, L);
 elseif (x_type == 2)
-    [x_audio, fs_audio] = audioread("SampleAudio\69.flac");
+    [x_audio, fs_audio] = audioread("SampleAudio/69.flac");
     
     if fs_audio ~= fs
         x_audio = resample(x_audio, fs, fs_audio);
@@ -313,7 +313,13 @@ end
 % Plot del NM
 if (normalized_mis_flag)
     figure;
-    plot((1:length(norm_mis))*(norm_iteration_factor/fs), norm_mis);
+    plot((1:length(norm_mis))*D*(norm_iteration_factor/fs), norm_mis);
+    % Secondo me serve il fattore D, perché ogni iterazione del loop in 
+    % sottobanda corrisponde a D campioni fullband (per la decimazione).
+    % Se entra un segnale fullband di N=30*fs campioni, quindi che dura 30
+    % secondi, e l'algoritmo lo processa tutto, all'ultima iterazione
+    % devono essere trascorsi 30 secondi, prima segnava 15 s (D=2
+    % mancante).
     xlabel('Iteration Time (s)');
     ylabel('NM (dB)');
     title(sprintf('Normalized Misalignment (MIMO %dx%d)', M, L));
@@ -334,6 +340,8 @@ for m_plot=1:M_plotted
         plot(H_recon_example, 'LineWidth', 1.5);
         legend(sprintf("Real RIR (Mic %d, Spk %d)", m_plot, l_plot), "Estimated RIR");
         title('RIR Time Domain Comparison'); 
+        xlabel('Samples');
+        ylabel('Normalized Amplitude');
         grid on;
     end
 end

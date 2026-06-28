@@ -7,6 +7,10 @@ I = 64; % numero di sottobande
 D = 16; % fattore di decimazione
 % V = 6*I+1; % lunghezza del filtro prototipo per il banco DFT
 V = 129;
+fs = 16000; % Frequenza di campionamento
+
+K = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
+offset = 100; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
 
 P = 2;
 % frameSize = 4096;
@@ -20,13 +24,16 @@ eps_reg = 1e-6;
 delta_ap = 1e-4;
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
+norm_iteration_factor = 100;
 
 fid = fopen("IR/IR1_1.f64");
 H = fread(fid, 'double');
 fclose(fid);
 % Normalizzazione di H
-% H_original_peak = max(abs(H));
-% H = H / H_original_peak;
+H_original_peak = max(abs(H));
+%H = H(offset+1:offset+K) / H_original_peak;
+%H = H(offset+1:offset+K);
+H = H/H_original_peak;
 
 % RIR simulata per test
 % H = zeros(8192, 1);
@@ -60,16 +67,15 @@ H_subband = zeros(I, Ki); % Dimensione I x Ki
 % l'algoritmo converge dopo 1000 campioni
 
 % prototype_dft_filter = fir1(V-1, 1/I);
-% prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 12));
+ prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 12));
 % prototype_dft_filter = firceqrip(V-1, 1/I, [0.05 0.03]);
 % prototype_dft_filter = prototype_dft_filter / sum(prototype_dft_filter);
 
 % Parametri rcosdesign
 beta = 0.5;
 span = 128;
-prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
-prototype_dft_filter = prototype_dft_filter / sqrt(I);
-
+%prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
+%prototype_dft_filter = prototype_dft_filter / sqrt(I);
 % Plot della risposta del filtro prototipo
 figure;
 freqz(prototype_dft_filter, 1, 512);
@@ -162,9 +168,9 @@ for k=1:K_len
         H_subband(i, :) = H_subband(i, :) + mu_h * w(i) * e_k(k,i) * u_ij' / (norm_u + delta_h);
     end
     
-    % Normalized misalignment calcolato ogni 100 campioni per limitare la
-    % complessità
-    if (normalized_mis_flag && mod(k, 100) == 0)
+    % Normalized misalignment calcolato ogni norm_iteration_factor campioni
+    % per limitare la complessità
+    if (normalized_mis_flag && mod(k, norm_iteration_factor) == 0)
         % Ricostruzione della H fullband:
         % per la ricostruzione corretta si fa passare l'impulso diviso in
         % sottobande attraverso le sottobande della RIR, e poi si
@@ -215,26 +221,46 @@ H_recon_raw = RIR_reconstruction(prototype_dft_filter, H_subband, I, D);
 H_recon = scale_factor * H_recon_raw(delay_calib + 1 : delay_calib + K);
 
 figure;
-plot(H);
+plot(H(100:228), 'LineWidth', 1.5);
 hold on;
-plot(H_recon);
+plot(H_recon(100:228), 'LineWidth', 1.5);
 legend("Real RIR", "Estimated RIR");
+title('RIR Time Domain Comparison');
+xlabel('Samples');
+ylabel('Normalized Amplitude');
+grid on;
 
 % Plot del NM
 if (normalized_mis_flag)
     figure;
-    plot(norm_mis);
-    xlabel('Iteration Index (x100)');
+    plot((1:length(norm_mis))*D*(norm_iteration_factor/fs), norm_mis);
+    xlabel('Iteration Time (s)');
     ylabel('NM (dB)');
     title('Normalized Misalignment');
     grid on;
 end
 
+% Plot degli spettri delle RIR
 figure;
-plot(abs(fft(H)));
+K_fft = length(H_recon);
+H_true_fft = fft(H);
+H_est_fft = fft(H_recon);
+% Si mantengono solo le frequenze positive
+half_len = floor(K_fft/2) + 1;
+H_true_half = H_true_fft(1:half_len);
+H_est_half = H_est_fft(1:half_len);
+% Generazione del vettore delle frequenze fisiche in Hz da 0 a fs/2
+freq_vec = (0 : half_len - 1) * (fs / K_fft);
+mag_true_dB = 20 * log10(abs(H_true_half));
+mag_est_dB = 20 * log10(abs(H_est_half));
+plot(freq_vec, mag_true_dB, 'LineWidth', 1); 
 hold on;
-plot(abs(fft(H_recon)));
+plot(freq_vec, mag_est_dB, 'LineWidth', 1);
+xlabel('Frequency (Hz)');
+ylabel('Magnitude (dB)');
+title('RIR Frequency Response Comparison');
 legend("Real RIR", "Estimated RIR");
+grid on;
 
 
 %% Banchi di analisi e sintesi

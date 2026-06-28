@@ -9,10 +9,36 @@
 \usepackage{siunitx}
 \usepackage{float}
 
-\title{Confronto tra filtri prototipo per il banco filtri\\
-	nella stima della RIR in sottobande}
+\title{IMSAF based RIR tracking}
 \author{Michele Sulis \and Mauro Michele Maria Costantino}
 \date{\today}
+
+
+%% Indice documento
+
+%% Introduzione (report cronologico)
+%%
+%% Simulazioni (MATLAB)
+%% SISO 
+%% (introduzione)
+%% 		Confronto filtri (plot in frequenza)
+%% 		Confronto risultati
+%% 			NM
+%%			RIR Tempo (fatta bene)
+%% 			RIR Frequenza (fatta bene)
+%% MIMO
+%% (introduzione)
+%% 		Ingressi scorrelati (-60 dB)
+%%		MIMO con correlazione realistica (-9 dB)
+%%		Ruolo della decorrelazione intra-canale (P) - analisi con rumore colorato
+%%		Segnali stereo e test vari
+%%		HWR (risultati e analisi)
+%%	
+%% [Funzionalità ulteriori che la prof ci può far implementare]
+%%
+%% Implementazione (C/C++)
+%%		[...]
+%% Risultati finali e futuri sviluppi
 
 \begin{document}
 	
@@ -20,38 +46,70 @@
 	
 	\section{Introduzione}
 	
-	Questa relazione confronta due scelte di filtro prototipo per il banco DFT
-	di analisi/sintesi utilizzato nella stima in sottobande della risposta
-	all'impulso della stanza (RIR), con algoritmo di tracking di tipo IMSAF.
+	Questo documento raccoglie, in forma cronologica, lo sviluppo e la sperimentazione di un algoritmo di stima e tracciamento della risposta impulsiva della stanza (RIR) basato su filtraggio adattativo in sottobande, nel contesto dei sistemi di Sound Field Control (SFC) \cite{11249060, 11464373}.
 	
-	L'obiettivo è verificare se il banco filtri, di per sé, sia in grado di
-	garantire una ricostruzione accurata della RIR senza ricorrere a una
-	correzione a valle (equalizzazione tramite inversione della risposta del
-	banco). Si confrontano:
+	L'algoritmo di riferimento appartiene alla famiglia \emph{IMSAF} (\emph{Improved Multiband-Structured Subband Adaptive Filter}): il segnale di eccitazione e i segnali captati dai microfoni vengono decomposti in sottobande tramite un \emph{banco filtri DFT}, e in ciascuna sottobanda un filtro adattativo di tipo \emph{NLMS} stima la porzione corrispondente della RIR.
+	La struttura in sottobande riduce la correlazione del segnale in ingresso e accelera la convergenza rispetto a un adattamento a banda piena.
+	
+	Il lavoro è organizzato in ordine cronologico delle implementazioni realizzate. 
+	Si parte da una configurazione SISO (un altoparlante, un microfono) per validare il banco filtri e la ricostruzione della RIR, confrontando diverse scelte di filtro prototipo.
+	Si estende al caso MIMO (più altoparlanti, più microfoni), affrontando il problema della correlazione tra i canali di eccitazione e le tecniche di decorrelazione necessarie a una stima accurata.
+	
+	%Infine si implementa l'algoritmo in C/C++ per operare con segnali real-time in ambienti reali.
+	
+	%Aggiornare l'introduzione man mano che si fanno progressi
+	
+	\section{Simulazioni (MATLAB)}
 
-	\begin{itemize}
-		\item un prototipo passa-basso progettato con \texttt{fir1}
-		(finestra di Kaiser), e
-		\item un prototipo a coseno rialzato.
-	\end{itemize}
-
-	In entrambi i casi il banco utilizza $I = 64$ sottobande con fattore di
-	decimazione $D = 16$ (sovracampionamento di fattore 4). Le prestazioni sono
-	valutate tramite il normalized misalignment (NM) e il confronto tra RIR
-	ricostruita ed esatta sia nel tempo che in frequenza.
+	\subsection{Caso SISO}
+	Nel caso SISO il sistema dispone di un singolo altoparlante e di un singolo microfono.
+	Questa configurazione, pur non rappresentando lo scenario applicativo finale, consente di isolare e validare due aspetti fondamentali: il grado di  trasparenza del banco filtri di analisi/sintesi e l'accuratezza della ricostruzione della RIR a banda piena a partire dalle componenti in sottobanda.
+	In particolare, si confrontano due scelte di filtro prototipo per il banco DFT.
 	
-	\section{Confronto dei risultati}
-	
-	\subsection{Normalized misalignment (NM)}
+	\subsubsection{Filtri prototipo}
+	Si confrontano due prototipi: un filtro passa-basso progettato con \texttt{fir1} (finestra di Kaiser) e un filtro a coseno rialzato.
+	La differenza rilevante risiede nella pendenza della banda di transizione: il coseno rialzato presenta una transizione più ripida rispetto al filtro di Kaiser, che si traduce in sottobande più selettive e quindi in una minore sovrapposizione tra bande adiacenti, con conseguente maggiore attenuazione dell'aliasing.
+	Entrambi i prototipi sono progettati per suddividere la banda in $I=64$ sottobande. 
+	Il filtro di Kaiser (Figura \ref{fig:mag_kaiser12}) è stato ottenuto con $\beta=12$ e 129 campioni, mentre il coseno rialzato (Figura \ref{fig:mag_rcos}) è stato ottenuto con $\beta=0.5$ e \texttt{span} pari a 128, per una lunghezza complessiva di 8193 campioni.
+	Le due lunghezze risultano sensibilmente diverse, fattore che concorre alla maggiore sensibilità del coseno rialzato.
+	Si segnala inoltre che, nelle sezioni successive, la lunghezza del prototipo a coseno rialzato è stata sensibilmente ridotta al fine di contenere il carico computazionale, mantenendo comunque una selettività adeguata.
 	
 	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/mag_kaiser12}
+		\caption{Risposta in frequenza (modulo) del prototipo \texttt{fir1} (finestra di Kaiser).}
+		\label{fig:mag_kaiser12}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/mag_rcos}
+		\caption{Risposta in frequenza (modulo) del prototipo a coseno rialzato.}
+		\label{fig:mag_rcos}
+	\end{figure}
+	
+	\subsubsection{Confronto dei risultati}
+	
+	\paragraph{Normalized misalignment (NM)}
+	Con il prototipo a coseno rialzato il NM decresce in modo regolare lungo tutta la durata dell'adattamento, scendendo fino a circa \SI{-45}{\decibel} (Figura \ref{fig:nm_rcos}).
+	Con il prototipo \texttt{fir1}, invece, il comportamento risulta più sensibile alla scelta dei parametri, in particolare dell'ordine del filtro: in diverse configurazioni la curva tende a spianare verso un valore limite più alto (Figura \ref{fig:nm_fir1}).
+	
+	In particolare, il \texttt{fir1} raggiunge \SI{-32.5}{\decibel} a una velocità doppia rispetto al coseno rialzato, ma tale valore costituisce il \emph{plateau} a cui la curva si arresta, mentre il coseno rialzato continua a decrescere oltre.
+	Una possibile interpretazione della maggiore velocità del filtro Kaiser risiede nella sensibile differenza di lunghezza tra i due prototipi.
+	
+	Il banco basato sul coseno rialzato presenta quindi un comportamento complessivamente più regolare e prevedibile. 
+	Le simulazioni sono state condotte assumendo una frequenza di campionamento $f_{s}=\SI{16}{\kilo\hertz}$.
+	
+	%TODO: i due plot li metto insieme con tikz (con maggiore spessore), per evidenziare meglio le loro differenze nei floor e dove si incrociano e rcos inizia a fare meglio di fir1
+	\begin{figure}[!ht]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/nm_kaiser12}
 		\caption{Andamento del normalized misalignment durante l'adattamento
 			con prototipo \texttt{fir1}.}
 		\label{fig:nm_fir1}
 	\end{figure}
-	\begin{figure}[H]
+	
+	\begin{figure}[!ht]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/nm_rcos}
 		\caption{Andamento del normalized misalignment durante l'adattamento
@@ -59,34 +117,26 @@
 		\label{fig:nm_rcos}
 	\end{figure}
 	
-	Con il prototipo coseno rialzato il NM decresce in modo regolare lungo tutta
-	la durata dell'adattamento, scendendo fino a circa \SI{-45}{\decibel} senza
-	mostrare segni di saturazione (\SI{-51}{\decibel} dopo circa 500 iterazioni). Con il prototipo \texttt{fir1}, invece, il
-	comportamento risulta più sensibile alla scelta dei parametri, in
-	particolare dell'ordine del filtro, e in diverse configurazioni la curva
-	tende a spianare verso un valore limite più alto. Il banco basato sul coseno
-	rialzato presenta quindi un comportamento complessivamente più regolare e
-	prevedibile.
+	\newpage
 	
-	\subsection{RIR ricostruita}
+	\paragraph{RIR nel dominio del tempo}
+	La RIR ricostruita segue fedelmente quella reale con entrambi i prototipi: nel dominio del tempo le due stime risultano praticamente sovrapposte alla RIR esatta, al punto da rendere poco informativo riportare separatamente i due casi. Si mostra pertanto una sola ricostruzione rappresentativa (Figura \ref{fig:rir_time}).
 	
-	La RIR ricostruita segue fedelmente quella reale con entrambi i prototipi:
-	nel dominio del tempo le due stime risultano praticamente sovrapposte alla
-	RIR esatta, al punto da rendere poco informativo riportare separatamente i
-	due casi. Si mostra pertanto una sola ricostruzione rappresentativa.
-	
-	\begin{figure}[H]
+	Per chiarezza di visualizzazione, la RIR è mostrata in una finestra di 128 campioni a partire da un offset di 100, in modo da scartare il ritardo di propagazione iniziale e centrare la rappresentazione sulla parte informativa della risposta.
+	Per quanto riguarda invece le sezioni relative al caso MIMO, le RIR sono effettivamente troncate a tale lunghezza; le motivazioni di questa scelta sono discusse nella sezione corrispondente.
+		
+	\begin{figure}[!ht]
 		\centering
-		\includegraphics[width=0.7\textwidth]{plots/rir_time}
+		\includegraphics[width=0.8\textwidth]{plots/rir_time}
 		\caption{RIR reale (blu) e RIR stimata (rosso) nel dominio del tempo.}
 		\label{fig:rir_time}
 	\end{figure}
 	
-	\subsection{Spettro}
+	\newpage
 	
-	Anche nel dominio della frequenza il modulo della RIR stimata si sovrappone
-	a quello della RIR esatta per entrambi i prototipi, senza differenze
-	apprezzabili tra i due casi. Si riporta quindi un solo confronto.
+	\paragraph{RIR nel dominio della frequenza}
+	
+	Anche nel dominio della frequenza il modulo della RIR stimata si sovrappone a quello della RIR esatta per entrambi i prototipi, senza differenze apprezzabili tra i due casi. Si riporta quindi un solo confronto in Figura \ref{fig:rir_spectrum}.
 	
 	\begin{figure}[H]
 		\centering
@@ -96,12 +146,79 @@
 		\label{fig:rir_spectrum}
 	\end{figure}
 	
-	\section{Conclusioni}
+	\paragraph{Conclusioni}
+	Dopo aver sperimentato diversi filtri prototipo per il banco e ottimizzato i parametri, si è osservato che il banco basato su un prototipo a coseno rialzato fornisce un comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1}, permettendo di scendere fino a circa \SI{-45}{\decibel}.
+	Pertanto, a partire dalle sezioni successive, si abbandonerà il \texttt{fir1} in favore del coseno rialzato, adottandone una versione di lunghezza ridotta per contenere il carico computazionale. %TODO: recuperare i dettagli del rcos in mimo.m e riportarli.
 	
-	Cambiando il filtro prototipo del banco e ottimizzando i parametri, si è
-	osservato che il banco basato su un prototipo a coseno rialzato fornisce un
-	comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1},
-	permettendo al NM di scendere fino a circa \SI{-51}{\decibel} senza ricorrere
-	a una correzione a valle basata sull'inversione della risposta del banco.
+	\newpage
+	\subsection{Caso MIMO}
+	Nel caso MIMO il sistema dispone di $L$ altoparlanti e $M$ microfoni.
+	Ogni microfono capta la capta la somma dei contributi di tutti gli altoparlanti, ciascuno filtrato dalla rispettiva RIR.
+	L'obbiettivo è stimare separatamente tutte le $M \times L$ risposte dell'impulso.
+	Il problema principale è l'\emph{identificabilità}: se i segnali inviati ai diversi altoparlanti sono troppo correlati tra loro, non è possibile separare univocamente i singoli percorsi acustici a parture dalle sole osservazioni dei microfoni.
+	Le seguenti sezioni analizzano questo problema e le tecniche di decorrelazione adottate per affrontarlo.
 	
+	\subsubsection{Ingressi scorrelati: caso ideale}
+	Come primo passo si considera il caso in cui i segnali di eccitazione dei diversi canali siano statisticamente indipendenti (rumore bianco generato indipendentemente per ogni altoparlante).
+	Questa configurazione non corrisponde allo scenario reale, ma rappresenta il caso ideale in cui il problema di identificabilità è risolto per costruzione: serve a verificare che la struttura dell'algoritmo di tracciamento MIMO sia corretta.
+	
+	In queste condizioni il NM (Figura \ref{fig:nm_mimo_ind}) converge rapidamente verso valori molto bassi.
+	\begin{figure}[H]
+		\centering
+		%TODO: \includegraphics[width=0.8\textwidth]{plots/nm_mimo_ind}
+		\caption{NM nel caso MIMO con ingressi scorrelati (caso ideale). Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
+		\label{fig:nm_mimo_ind}
+	\end{figure}
+	
+	%TODO: mettere i dettagli dell'algoritmo che differiscono dall'implementazione SISO. Mettere il plot della risposta stimata sia nel tempo che in frequenza, con i relativi commenti.
+	
+	\subsubsection{Correlazione realistica tra canali}
+	Nello scenario realistico, in assenza del blocco SFC, un'unica sorgente viene replicata sui diversi canali, che risultano quindi fortemente correlati.
+	Per ripristinare l'identificabilità si applica una decorrelazione mediante \emph{modulazione di fase} in sottobanda, secondo lo schema riportato in letteratura \cite{11249060}: ogni sottobanda di ciascun canale viene modulata da una fase sinusoidale dipendente dal canale e dall'indice sottobanda.
+	
+	In queste condizioni il NM (Figura \ref{fig:nm_mimo_corr}) raggiunge un valore limite (\emph{floor}) significativamente più alto rispetto al caso ideale (circa \SI{-9}{\decibel}).
+	Questo comportamento si interpreta osservando che la modulazione di fase agisce esclusivamente sul segnale e non sul suo modulo: due canali che partono identici mantengono, dopo la modulazione, lo stesso spettro di ampiezza, restando quindi coerenti in modulo.
+	Con RIR reali, il cui spettro di ampiezza presenta una struttura ricca e informativa, questa coerenza residua di modulo limita la capacità di separare i canali, fissa un floor più elevato sull'errore e rallenta la velocità di convergenza.
+	
+	\begin{figure}[H]
+		\centering
+		%TODO: \includegraphics[width=0.8\textwidth]{plots/nm_mimo_corr}
+		\caption{NM nel caso MIMO con canali correlati e decorrelazione tramite modulazione di fase. Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
+		\label{fig:nm_mimo_corr}
+	\end{figure}
+	
+	%TODO: mettere i dettagli dell'algoritmo che differiscono dall'implementazione a canali scorrelati. Mettere il plot della risposta stimata sia nel tempo che in frequenza, con i relativi commenti.
+	
+	\subsubsection{Ruolo della decorrelazione intra-canale ($P$)}
+	Oltre alla decorrelazione tra canali (modulazione di fase), l'algoritmo IMSAF prevede una decorrelazione \emph{intra-canale} basata su una predizione lineare di ordine $P$, che sbianca il segnale di ingresso di ciascun canale.
+	Con eccitazione a rumore bianco l'effetto di tale stadio non è rilevabile, poichè il segnale è già spettralmente piatto.
+	Per evidenziarne il ruolo si è quindi utilizzato un ingresso colorato (rumore a spettro non piatto).
+	
+	I risultati mostrano che la decorrelazione intra-canale \textbf{accelera la velocità di convergenza senza modificare il floor} del NM. 
+	A titolo di esempio, nel caso a canali scorrelati il NM raggiunge \SI{-55}{\decibel} dopo 383 iterazioni con $P=0$ e dopo sole 82 iterazioni con $P=2$ (circa $4.7$ volte più veloce), con floor finali paragonabili.
+	Questo conferma quanto riportato in letteratura \cite{11249060}: lo sbiancamento dell'ingresso migliora la velocità di adattamento ma non il livello di errore a regime, che dipende da altri fattori (tra cui aliasing del banco, identificabilità).
+	
+	%TODO: aggiungere i confronti dei NM sullo stesso grafico con tikz, convertire le iterazioni in secondi e correggere il testo, aggiungere il riferimento alla figura nel testo.
+	
+	\subsubsection{Segnali reali e gestione pratica}
+	Il passaggio da segnali sintetici a segnali audio reali introduce alcune problematiche pratiche, affrontate con due accorgimenti.
+	In primo luogo, la regolarizzazione nel calcolo dei pesi sottobanda è stata resa proporzionale all'energia massima delle sottobande, anziché fissa, per garantire robustezza al variare del segnale.
+	In secondo luogo, i campioni a energia molto bassa (silenzi, frequenti nei segnali reali) vengono saltati nell'aggiornamento del filtro, poichè la normalizzazione su ingresso quasi nullo porterebbe l'algoritmo a divergere.
+	
+	Si è inoltre confrontato l'uso di un canale mono replicato su tutti i canali con quello di un segnale stereo inviato a canali distinti.
+	Il caso stereo fornisce prestazioni migliori poiché o canali sono già intrinsecamente diversi all'origine e parte del problema di identificabilità risulta attenuato a monte.
+	Il segnale stereo reale rappresenta quindi un caso intermendio tra mono replicato (canali identici, caso peggiore) e gli ingressi indipendenti (caso ideale).
+
+	%TODO: aggiungere dettagli dell'algoritmo se me li sono dimenticati (oltre a quelli già descritti). Inserire NM, RIR nel tempo e in frequenza e i relativi commenti.
+	
+		
+	%\subsubsection{Decorrelazione tramite half-wave rectifier (HWR)}
+	%TODO: se ho tempo la implemento in MATLAB come prova (magari con \texttt{sound()} per sentire se effettivamente distorce il suono in maniera apprezzabile oppure no). Sempre se faccio in tempo e se i risultati sono accettabili la riporto, altrimenti questa sezione verrà cestinata.
+	
+	%\section{Implementazione (C/C++)}
+	%TODO?
+	
+	\newpage
+	\bibliographystyle{plain}
+	\bibliography{references/refs}
 \end{document}
