@@ -8,6 +8,15 @@
 \usepackage{amsmath}
 \usepackage{siunitx}
 \usepackage{float}
+\usepackage[hidelinks]{hyperref}
+
+\usepackage[acronym, shortcuts]{glossaries}
+\newacronym{rir}{RIR}{Room Impulse Response}
+\newacronym{sfc}{SFC}{Sound Field Control}
+\newacronym{imsaf}{IMSAF}{Improved Multiband-Structured Subband Adaptive Filter}
+\newacronym{mimo}{MIMO}{Multiple-Input Multiple-Output}
+\newacronym{siso}{SISO}{Single-Input Single-Output}
+\newacronym{nlms}{NLMS}{Normalized Least Mean Square}
 
 \title{IMSAF based RIR tracking}
 \author{Michele Sulis \and Mauro Michele Maria Costantino}
@@ -46,14 +55,14 @@
 	
 	\section{Introduzione}
 	
-	Questo documento raccoglie, in forma cronologica, lo sviluppo e la sperimentazione di un algoritmo di stima e tracciamento della risposta impulsiva della stanza (RIR) basato su filtraggio adattativo in sottobande, nel contesto dei sistemi di Sound Field Control (SFC) \cite{11249060, 11464373}.
+	Questo documento raccoglie, in forma cronologica, lo sviluppo e la sperimentazione di un algoritmo di stima e tracciamento della risposta impulsiva della stanza, o \ac{rir} basato su filtraggio adattativo in sottobande, nel contesto dei sistemi di \ac{sfc} \cite{11249060, 11464373}.
 	
-	L'algoritmo di riferimento appartiene alla famiglia \emph{IMSAF} (\emph{Improved Multiband-Structured Subband Adaptive Filter}): il segnale di eccitazione e i segnali captati dai microfoni vengono decomposti in sottobande tramite un \emph{banco filtri DFT}, e in ciascuna sottobanda un filtro adattativo di tipo \emph{NLMS} stima la porzione corrispondente della RIR.
+	L'algoritmo di riferimento appartiene alla famiglia \ac{imsaf}: il segnale di eccitazione e i segnali captati dai microfoni vengono decomposti in sottobande tramite un \emph{banco filtri DFT}, e in ciascuna sottobanda un filtro adattativo di tipo \ac{nlms} stima la porzione corrispondente della RIR.
 	La struttura in sottobande riduce la correlazione del segnale in ingresso e accelera la convergenza rispetto a un adattamento a banda piena.
 	
-	Il lavoro è organizzato in ordine cronologico delle implementazioni realizzate. 
-	Si parte da una configurazione SISO (un altoparlante, un microfono) per validare il banco filtri e la ricostruzione della RIR, confrontando diverse scelte di filtro prototipo.
-	Si estende al caso MIMO (più altoparlanti, più microfoni), affrontando il problema della correlazione tra i canali di eccitazione e le tecniche di decorrelazione necessarie a una stima accurata.
+	Il lavoro è organizzato seguendo l'ordine cronologico delle implementazioni realizzate. 
+	Si parte da una configurazione \ac{siso} (un altoparlante, un microfono) per validare il banco filtri e la ricostruzione della RIR, confrontando diverse scelte di filtro prototipo.
+	Si estende al caso \ac{mimo} (più altoparlanti, più microfoni), affrontando il problema della correlazione tra i canali di eccitazione e le tecniche di decorrelazione necessarie a una stima accurata.
 	
 	%Infine si implementa l'algoritmo in C/C++ per operare con segnali real-time in ambienti reali.
 	
@@ -62,7 +71,7 @@
 	\section{Simulazioni (MATLAB)}
 
 	\subsection{Caso SISO}
-	Nel caso SISO il sistema dispone di un singolo altoparlante e di un singolo microfono.
+	Nel caso \ac{siso} il sistema dispone di un singolo altoparlante e di un singolo microfono.
 	Questa configurazione, pur non rappresentando lo scenario applicativo finale, consente di isolare e validare due aspetti fondamentali: il grado di  trasparenza del banco filtri di analisi/sintesi e l'accuratezza della ricostruzione della RIR a banda piena a partire dalle componenti in sottobanda.
 	In particolare, si confrontano due scelte di filtro prototipo per il banco DFT.
 	
@@ -153,9 +162,9 @@
 	\newpage
 	\subsection{Caso MIMO}
 	Nel caso MIMO il sistema dispone di $L$ altoparlanti e $M$ microfoni.
-	Ogni microfono capta la capta la somma dei contributi di tutti gli altoparlanti, ciascuno filtrato dalla rispettiva RIR.
-	L'obbiettivo è stimare separatamente tutte le $M \times L$ risposte dell'impulso.
-	Il problema principale è l'\emph{identificabilità}: se i segnali inviati ai diversi altoparlanti sono troppo correlati tra loro, non è possibile separare univocamente i singoli percorsi acustici a parture dalle sole osservazioni dei microfoni.
+	Ogni microfono capta la somma dei contributi di tutti gli altoparlanti, ciascuno filtrato dalla rispettiva RIR.
+	L'obiettivo è stimare separatamente tutte le $M \times L$ risposte dell'impulso.
+	Il problema principale è l'\emph{identificabilità}: se i segnali inviati ai diversi altoparlanti sono troppo correlati tra loro, non è possibile separare univocamente i singoli percorsi acustici a partire dalle sole osservazioni dei microfoni.
 	Le seguenti sezioni analizzano questo problema e le tecniche di decorrelazione adottate per affrontarlo.
 	
 	\subsubsection{Ingressi scorrelati: caso ideale}
@@ -165,7 +174,7 @@
 	In queste condizioni il NM (Figura \ref{fig:nm_mimo_ind}) converge rapidamente verso valori molto bassi.
 	\begin{figure}[H]
 		\centering
-		%TODO: \includegraphics[width=0.8\textwidth]{plots/nm_mimo_ind}
+		\includegraphics[width=0.8\textwidth]{plots/nm_mimo_ideal}
 		\caption{NM nel caso MIMO con ingressi scorrelati (caso ideale). Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
 		\label{fig:nm_mimo_ind}
 	\end{figure}
@@ -177,12 +186,12 @@
 	Per ripristinare l'identificabilità si applica una decorrelazione mediante \emph{modulazione di fase} in sottobanda, secondo lo schema riportato in letteratura \cite{11249060}: ogni sottobanda di ciascun canale viene modulata da una fase sinusoidale dipendente dal canale e dall'indice sottobanda.
 	
 	In queste condizioni il NM (Figura \ref{fig:nm_mimo_corr}) raggiunge un valore limite (\emph{floor}) significativamente più alto rispetto al caso ideale (circa \SI{-9}{\decibel}).
-	Questo comportamento si interpreta osservando che la modulazione di fase agisce esclusivamente sul segnale e non sul suo modulo: due canali che partono identici mantengono, dopo la modulazione, lo stesso spettro di ampiezza, restando quindi coerenti in modulo.
+	Questo comportamento si interpreta osservando che la modulazione di fase agisce esclusivamente sulla fase del segnale e non sul suo modulo: due canali che partono identici mantengono, dopo la modulazione, lo stesso spettro di ampiezza, restando quindi coerenti in modulo.
 	Con RIR reali, il cui spettro di ampiezza presenta una struttura ricca e informativa, questa coerenza residua di modulo limita la capacità di separare i canali, fissa un floor più elevato sull'errore e rallenta la velocità di convergenza.
 	
 	\begin{figure}[H]
 		\centering
-		%TODO: \includegraphics[width=0.8\textwidth]{plots/nm_mimo_corr}
+		\includegraphics[width=0.8\textwidth]{plots/nm_mimo_correlated_noise}
 		\caption{NM nel caso MIMO con canali correlati e decorrelazione tramite modulazione di fase. Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
 		\label{fig:nm_mimo_corr}
 	\end{figure}
@@ -192,7 +201,7 @@
 	\subsubsection{Ruolo della decorrelazione intra-canale ($P$)}
 	Oltre alla decorrelazione tra canali (modulazione di fase), l'algoritmo IMSAF prevede una decorrelazione \emph{intra-canale} basata su una predizione lineare di ordine $P$, che sbianca il segnale di ingresso di ciascun canale.
 	Con eccitazione a rumore bianco l'effetto di tale stadio non è rilevabile, poichè il segnale è già spettralmente piatto.
-	Per evidenziarne il ruolo si è quindi utilizzato un ingresso colorato (rumore a spettro non piatto).
+	Per evidenziarne il ruolo si è quindi utilizzato come ingresso un rumore colorato, ovvero a spettro non piatto.
 	
 	I risultati mostrano che la decorrelazione intra-canale \textbf{accelera la velocità di convergenza senza modificare il floor} del NM. 
 	A titolo di esempio, nel caso a canali scorrelati il NM raggiunge \SI{-55}{\decibel} dopo 383 iterazioni con $P=0$ e dopo sole 82 iterazioni con $P=2$ (circa $4.7$ volte più veloce), con floor finali paragonabili.
@@ -206,9 +215,48 @@
 	In secondo luogo, i campioni a energia molto bassa (silenzi, frequenti nei segnali reali) vengono saltati nell'aggiornamento del filtro, poichè la normalizzazione su ingresso quasi nullo porterebbe l'algoritmo a divergere.
 	
 	Si è inoltre confrontato l'uso di un canale mono replicato su tutti i canali con quello di un segnale stereo inviato a canali distinti.
-	Il caso stereo fornisce prestazioni migliori poiché o canali sono già intrinsecamente diversi all'origine e parte del problema di identificabilità risulta attenuato a monte.
-	Il segnale stereo reale rappresenta quindi un caso intermendio tra mono replicato (canali identici, caso peggiore) e gli ingressi indipendenti (caso ideale).
+	Il caso stereo fornisce prestazioni migliori poiché i canali sono già intrinsecamente diversi all'origine e parte del problema di identificabilità risulta attenuato a monte.
+	Il segnale stereo reale rappresenta quindi un caso intermendio tra mono replicato (canali identici, caso peggiore) e ingressi indipendenti (caso ideale).
 
+	Entrambi i segnali sono stati reperiti dal database pubblicato in \cite{ebu_sqam_flac}. Nello specifico, come segnale mono si è scelta la traccia \texttt{50.flac} (Male Speech (English)), e come segnale stereo si è scelta la traccia \texttt{69.flac} (ABBA). Nei due casi presi in esame si sono impostati i seguenti parametri
+	\begin{itemize}
+		\item $I = 8$, $D = 2$;
+		\item $L = 2$, $M = 2$;
+		\item $P = 2$;
+		\item $\mu_h = 0.32$, $\delta_h = 0.001$
+	\end{itemize}
+	e come filtro prototipo si è usato un filtro a coseno rialzato con $\beta = 0.6$ e \texttt{span} pari a 16, per un totale di $129$ campioni.
+
+	Come si nota dalle Figure \ref{fig:nm_mono_real}, \ref{fig:rir_spec_mono}, il fatto che i due canali trasmettano esattamente lo stesso segnale limita fortemenete le prestazioni dell'algoritmo, introducendo una distorsione considerevole della RIR alle basse e alle alte frequenze.
+
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/nm_mono_real.pdf}
+		\caption{NM nel caso MIMO con ingresso mono replicato sui canali.}
+		\label{fig:nm_mono_real}
+	\end{figure}
+
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum_mono.pdf}
+		\caption{Modulo della trasformata della RIR reale (blu) e stimata (rosso) con ingresso mono replicato sui canali.}
+		\label{fig:rir_spec_mono}
+	\end{figure}
+
+	Al contrario, le Figure \ref{fig:nm_stereo_real}, \ref{fig:rir_spec_stereo} evidenziano che, quando i segnali trasmessi sui canali sono diversi (seppur leggermente, come avviene nel caso di due componenti di un segnale stereo), le operazioni di decorrelazione hanno un risultato migliore e portano a tracking molto più accurati. In questo caso, infatti, il confronto tra le Figure \ref{fig:nm_mono_real} e \ref{fig:nm_stereo_real} mostra che con segnali diversificati il NM scende regolarmente allo scorrere dei campioni. Inoltre, dalle Figure \ref{fig:rir_spec_mono} e \ref{fig:rir_spec_stereo} si evince che il contenuto spettrale della \ac{rir} ricostruita con segnali stereo risulta essere molto più vicino a quello della \ac{rir} reale, introducendo un significativo miglioramento nel tracking delle basse frequenze. Anche il tracking delle alte frequenze migliora notevolemente ma continua a soffrire il fatto che i segnali di ingresso, in quanto segnali audio reali, sono tipicamente passa-basso e, per tale ragione, le loro sottobande relative alle frequenze più alte hanno energie molto basse.
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/nm_stereo_real.pdf}
+		\caption{NM nel caso MIMO con ingresso stereo diversificato sui canali.}
+		\label{fig:nm_stereo_real}
+	\end{figure}
+
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\textwidth]{plots/rir_spectrum_stereo.pdf}
+		\caption{Modulo della trasformata della RIR reale (blu) e stimata (rosso) con ingresso stereo diversificato sui canali.}
+		\label{fig:rir_spec_stereo}
+	\end{figure}
 	%TODO: aggiungere dettagli dell'algoritmo se me li sono dimenticati (oltre a quelli già descritti). Inserire NM, RIR nel tempo e in frequenza e i relativi commenti.
 	
 		
@@ -219,6 +267,6 @@
 	%TODO?
 	
 	\newpage
-	\bibliographystyle{plain}
+	\bibliographystyle{ieeetr}
 	\bibliography{references/refs}
 \end{document}

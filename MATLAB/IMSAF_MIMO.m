@@ -72,9 +72,10 @@ s_subband_decorr = zeros(K_len, I, L);
 s_subband_base = zeros(K_len, I, L);
 
 if (x_type == 1)
-    load handel.mat; x_audio = y; fs_audio = Fs;
+    % load handel.mat; x_audio = y; fs_audio = Fs;
+    [x_audio, fs_audio] = audioread("SampleAudio/50.flac");
     if fs_audio ~= fs
-        x_audio = resample(x_audio, fs, fs_audio);
+        x_audio = resample(mean(x_audio,2), fs, fs_audio);
     end
     if length(x_audio) >= N
         x_mono = x_audio(1:N);
@@ -82,6 +83,7 @@ if (x_type == 1)
         x_mono = repmat(x_audio, ceil(N/length(x_audio)), 1);
         x_mono = x_mono(1:N);
     end
+    % x_mono = randn(N, 1); % Rumore di test correlato su ogni canale
     x_mono = x_mono / std(x_mono); 
     x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
     s_subband_base = repmat(x_mono_subband, 1, 1, L);
@@ -128,6 +130,7 @@ s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
 if (x_test)
     x_speakers = randn(N_recon, L);
+    % x_speakers = filter(1,[1 -0.9], x_speakers); % Rumore marrone
 else
     x_speakers = zeros(N_recon, L);
     for l = 1:L
@@ -209,11 +212,13 @@ for k=1:K_len
 
         norm_s = norm(s_ij)^2;
         if norm_s < 1e-6
+            if P>0
             % Nei file digitali possono esserci dei silenzi che fanno
             % divergere l'algoritmo. Se la norma è troppo bassa, passare al
             % prossimo campione
             S_i_mat = S_i_memory(:, :, i);
             S_i_memory(:, :, i) = [s_ij, S_i_mat(:, 1:end-1)];
+            end
             continue; 
         end
 
