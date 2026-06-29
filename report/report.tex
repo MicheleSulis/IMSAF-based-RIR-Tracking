@@ -200,13 +200,12 @@
 				tick align=inside,
 				no markers,
 				font=\sffamily,
-				every axis plot/.append style={line width=1pt}
 				]
-				\addplot[black] table [x index=0, y index=2] {plots/rir_time_kaiser_real.dat};
+				\addplot[black, line width=1.1pt] table [x index=0, y index=2] {plots/rir_time_kaiser_real.dat};
 				\addlegendentry{Real RIR}
-				\addplot[matlabblue] table [x index=0, y index=1] {plots/rir_time_kaiser_real.dat};
+				\addplot[matlabblue, line width=0.5pt] table [x index=0, y index=1] {plots/rir_time_kaiser_real.dat};
 				\addlegendentry{Kaiser}
-				\addplot[matlaborange] table [x index=0, y index=1] {plots/rir_time_rcos.dat};
+				\addplot[matlaborange, line width=0.5pt] table [x index=0, y index=1] {plots/rir_time_rcos.dat};
 				\addlegendentry{Rcos}
 			\end{axis}
 		\end{tikzpicture}
