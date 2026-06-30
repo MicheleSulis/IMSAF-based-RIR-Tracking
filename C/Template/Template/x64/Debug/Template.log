@@ -1,0 +1,18 @@
+﻿  stdafx.cpp
+  myLib.cpp
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\LEEffect.h(226,14): warning C4091: 'typedef ': ignorato a sinistra di 'WatchDataType' quando non si dichiara alcuna variabile
+  (compilazione del file di origine '/myLib.cpp')
+  
+  PlugIn.cpp
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\LEEffect.h(226,14): warning C4091: 'typedef ': ignorato a sinistra di 'WatchDataType' quando non si dichiara alcuna variabile
+  (compilazione del file di origine '/PlugIn.cpp')
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\numbers(11): warning STL4038: The contents of <numbers> are available only with C++20 or later.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(391,11): warning C4244: '=': conversione da 'double' a 'int'. Possibile perdita di dati.
+  (compilazione del file di origine '/PlugIn.cpp')
+  
+  Template.cpp
+  Generazione del codice in corso...
+C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(1424,5): warning MSB8012: TargetPath(C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\x64\Debug\Template.dll) non corrisponde al valore della proprietà OutputFile di Linker (C:\Program Files (x86)\Leaff\NU-Tech\PlugIn\debug\Template.dll). Questa condizione potrebbe impedire la corretta compilazione del progetto. Per risolvere il problema, accertarsi che i valori di proprietà $(OutDir), $(TargetName) e $(TargetExt) corrispondano al valore specificato in %(Link.OutputFile).
+     Creazione della libreria C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\x64\Debug\Template.lib e dell'oggetto C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\x64\Debug\Template.exp
+  Template.vcxproj -> C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\x64\Debug\Template.dll
