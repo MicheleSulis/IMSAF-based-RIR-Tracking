@@ -30,6 +30,7 @@ PlugIn::PlugIn(InterfaceType _CBFunction,void * _PlugRef,HWND ParentDlg): LEEffe
 	H_sub = 0;
 	s_state = 0;
 	s_head_idx = 0;
+	syn_head = 0;
 	state_syn = 0;
 	S_memory = 0;
 	tmp_x_full = 0;
@@ -48,20 +49,21 @@ PlugIn::PlugIn(InterfaceType _CBFunction,void * _PlugRef,HWND ParentDlg): LEEffe
 	P_vec = 0;
 	overlap_out_x = 0;
 	tmp_out_x_full = 0;
-	request_rir_save = false;
+	h_ana_re_rev = 0;
+	h_ana_im_rev = 0;
+	u_ij_conj = 0;
+	s_ij_conj = 0;
+	S_memory_conj = 0;
 }
 
 int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID ExtraInfo)
 {
 	int sub_frames = FrameSize / D;
 
-	// TO-DO: implementare i pesi
-	// Andrebbero calcolati ad ogni frame, valutare se servono perché le performance sembrano già buone
 	if (w_i[0] == 0.0) {
 		for (int i = 0; i < I; i++) w_i[i] = 1.0;
 	}
 
-	// Massimo 32 speaker e 32 microfoni
 	double* in_x[32];
 	double* in_y[32];
 	double* out_x[32];
@@ -74,28 +76,24 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		in_y[m] = (double*)Input[L + m]->DataBuffer;
 	}
 
-	// Preparazione buffer overlap per l'ingresso IN_X
+	// 1. Preparazione Buffer Overlap X e Y
 	for (int l = 0; l < L; l++) {
 		int offset_l = l * (filter_len - 1);
 		int tmp_offset = l * (FrameSize + filter_len - 1);
-
 		ippsCopy_64f(&overlap_x[offset_l], &tmp_x_full[tmp_offset], filter_len - 1);
 		ippsCopy_64f(in_x[l], &tmp_x_full[tmp_offset + filter_len - 1], FrameSize);
 		ippsCopy_64f(&in_x[l][FrameSize - (filter_len - 1)], &overlap_x[offset_l], filter_len - 1);
 	}
 
-	// Preparazione buffer overlap per l'ingresso IN_Y
 	for (int m = 0; m < M; m++) {
 		int offset_m = m * (filter_len - 1);
 		int tmp_offset = m * (FrameSize + filter_len - 1);
-
 		ippsCopy_64f(&overlap_y[offset_m], &tmp_y_full[tmp_offset], filter_len - 1);
 		ippsCopy_64f(in_y[m], &tmp_y_full[tmp_offset + filter_len - 1], FrameSize);
 		ippsCopy_64f(&in_y[m][FrameSize - (filter_len - 1)], &overlap_y[offset_m], filter_len - 1);
 	}
 
-
-	// Analisi di x e decorrelazione
+	// 2. Analisi di X e Decorrelazione
 	int temp_global_k = global_k;
 	for (int k_local = 0; k_local < sub_frames; k_local++) {
 		int n_full = k_local * D;
@@ -105,14 +103,10 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod];
 			for (int l = 0; l < L; l++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
-				int tmp_offset = l * (FrameSize + filter_len - 1);
+				int read_idx = l * (FrameSize + filter_len - 1) + n_full;
 
-				for (int v = 0; v < filter_len; v++) {
-					double sample = tmp_x_full[tmp_offset + n_full + (filter_len - 1) - v];
-					Ipp64fc h_val = h_ana_complex[i * filter_len + v];
-					filter_out.re += sample * h_val.re;
-					filter_out.im += sample * h_val.im;
-				}
+				ippsDotProd_64f(&tmp_x_full[read_idx], &h_ana_re_rev[i * filter_len], filter_len, &filter_out.re);
+				ippsDotProd_64f(&tmp_x_full[read_idx], &h_ana_im_rev[i * filter_len], filter_len, &filter_out.im);
 
 				Ipp64fc s_base_val;
 				ippsMulC_64fc(&filter_out, rotor_ana, &s_base_val, 1);
@@ -127,44 +121,54 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		temp_global_k++;
 	}
 
-	// Sintesi degli speaker (out_x)
+	// 3. Sintesi degli Speaker
 	int temp_global_n = global_n;
 	for (int n = 0; n < FrameSize; n++) {
 		int n_mod = temp_global_n % I;
+		bool is_new_subframe = (n % D == 0);
+		int k_local = n / D;
+
 		for (int l = 0; l < L; l++) {
 			double out_val = 0.0;
 			for (int i = 0; i < I; i++) {
-				int state_idx = l * I * (filter_len - 1) + i * (filter_len - 1);
+
+				int channel_idx = l * I + i;
+				int base_idx = channel_idx * (filter_len * 2);
+				int head = syn_head[channel_idx];
+
+				// Upsampling: aggiorna il buffer solo sui sample interpolati, altrimenti usa zero
 				Ipp64fc w_val = { 0.0, 0.0 };
-
-				if (n % D == 0) {
-					int k_local = n / D;
-					w_val = s_decorr[(l * I + i) * sub_frames + k_local];
+				if (is_new_subframe) {
+					w_val = s_decorr[channel_idx * sub_frames + k_local];
 				}
 
-				Ipp64fc filter_out = { w_val.re * taps[0], w_val.im * taps[0] };
-				for (int v = 1; v < filter_len; v++) {
-					Ipp64fc state_val = state_syn[state_idx + (v - 1)];
-					filter_out.re += state_val.re * taps[v];
-					filter_out.im += state_val.im * taps[v];
+				// Rotazione del buffer in avanti
+				head--;
+				if (head < 0) head = filter_len - 1;
+				syn_head[channel_idx] = head;
+
+				// Scrittura doppia (Double Buffer Trick)
+				state_syn[base_idx + head] = w_val;
+				state_syn[base_idx + head + filter_len] = w_val;
+
+				// Calcolo convoluzione
+				Ipp64fc filter_out = { 0.0, 0.0 };
+				Ipp64fc* state_ptr = &state_syn[base_idx + head];
+
+				for (int v = 0; v < filter_len; v++) {
+					filter_out.re += state_ptr[v].re * taps[v];
+					filter_out.im += state_ptr[v].im * taps[v];
 				}
 
-				Ipp64fc s_i;
 				Ipp64fc rotor_syn = dft_rot_syn[i * I + n_mod];
-				ippsMulC_64fc(&filter_out, rotor_syn, &s_i, 1);
-				out_val += s_i.re;
-
-				// Shift linea di ritardo
-				if (filter_len > 2) ippsMove_64fc(&state_syn[state_idx], &state_syn[state_idx + 1], filter_len - 2);
-				if (filter_len > 1) state_syn[state_idx] = w_val;
+				out_val += (filter_out.re * rotor_syn.re - filter_out.im * rotor_syn.im);
 			}
 			out_x[l][n] = out_val * D;
 		}
 		temp_global_n++;
 	}
 
-	// Aggiornamento del filtro adattativo
-	// Overlap di out_x
+	// 4. Aggiornamento del Filtro Adattativo
 	for (int l = 0; l < L; l++) {
 		int offset_l = l * (filter_len - 1);
 		int tmp_offset = l * (FrameSize + filter_len - 1);
@@ -180,146 +184,150 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		for (int i = 0; i < I; i++) {
 			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod];
 
-			// Analisi microfono (in_y -> y_sub)
+			// Analisi microfono
 			for (int m = 0; m < M; m++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
-				int tmp_offset = m * (FrameSize + filter_len - 1);
-				for (int v = 0; v < filter_len; v++) {
-					double sample = tmp_y_full[tmp_offset + n_full + (filter_len - 1) - v];
-					Ipp64fc h_val = h_ana_complex[i * filter_len + v];
-					filter_out.re += sample * h_val.re;
-					filter_out.im += sample * h_val.im;
-				}
+				int read_idx = m * (FrameSize + filter_len - 1) + n_full;
+
+				ippsDotProd_64f(&tmp_y_full[read_idx], &h_ana_re_rev[i * filter_len], filter_len, &filter_out.re);
+				ippsDotProd_64f(&tmp_y_full[read_idx], &h_ana_im_rev[i * filter_len], filter_len, &filter_out.im);
+
 				ippsMulC_64fc(&filter_out, rotor_ana, &y_sub[(m * I + i) * sub_frames + k_local], 1);
 			}
 
-			// Analisi speaker reale (out_x -> s_true_val) per usarlo come regressore
+			// Analisi speaker
 			for (int l = 0; l < L; l++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
-				int tmp_offset = l * (FrameSize + filter_len - 1);
-				for (int v = 0; v < filter_len; v++) {
-					double sample = tmp_out_x_full[tmp_offset + n_full + (filter_len - 1) - v];
-					Ipp64fc h_val = h_ana_complex[i * filter_len + v];
-					filter_out.re += sample * h_val.re;
-					filter_out.im += sample * h_val.im;
-				}
+				int read_idx = l * (FrameSize + filter_len - 1) + n_full;
+
+				ippsDotProd_64f(&tmp_out_x_full[read_idx], &h_ana_re_rev[i * filter_len], filter_len, &filter_out.re);
+				ippsDotProd_64f(&tmp_out_x_full[read_idx], &h_ana_im_rev[i * filter_len], filter_len, &filter_out.im);
+
 				Ipp64fc s_true_val;
 				ippsMulC_64fc(&filter_out, rotor_ana, &s_true_val, 1);
 
-				// Popola lo stato del regressore con l'analisi di out_x
 				int ch_idx = i * L + l;
 				s_state[ch_idx * Ki + s_head_idx[ch_idx]] = s_true_val;
 				s_head_idx[ch_idx] = (s_head_idx[ch_idx] + 1) % Ki;
 
 				for (int delay = 0; delay < Ki; delay++) {
-					int read_idx = (s_head_idx[ch_idx] - 1 - delay + Ki) % Ki;
-					s_ij[l * Ki + delay] = s_state[ch_idx * Ki + read_idx];
+					int read_idx_delay = (s_head_idx[ch_idx] - 1 - delay + Ki) % Ki;
+					s_ij[l * Ki + delay] = s_state[ch_idx * Ki + read_idx_delay];
 				}
 			}
+
 			double norm_s_val;
 			ippsNorm_L2_64fc64f(s_ij, L * Ki, &norm_s_val);
 			double norm_s = norm_s_val * norm_s_val;
 
-			// Evita divisioni matematiche per 0 dovute a silenzi in segnali digitali
 			if (norm_s < 1e-12) {
 				if (P > 0) {
-					// Shift della memoria
-					ippsMove_64fc(&S_memory[i * P * L * Ki],
-						&S_memory[i * P * L * Ki + L * Ki],
-						(P - 1) * L * Ki);
+					ippsMove_64fc(&S_memory[i * P * L * Ki], &S_memory[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
 					ippsCopy_64fc(s_ij, &S_memory[i * P * L * Ki], L * Ki);
+					ippsConj_64fc(s_ij, s_ij_conj, L * Ki);
+					ippsMove_64fc(&S_memory_conj[i * P * L * Ki], &S_memory_conj[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
+					ippsCopy_64fc(s_ij_conj, &S_memory_conj[i * P * L * Ki], L * Ki);
 				}
 				continue;
 			}
 
-			// Decorrelazione
-			ippsCopy_64fc(s_ij, u_ij, L * Ki); // Base: u_ij = s_ij
+			// 5. Decorrelazione IMSAF
+			ippsCopy_64fc(s_ij, u_ij, L* Ki);
 
 			if (P > 0) {
+				// Il coniugato di s_ij viene calcolato solo una volta per iterazione
+				ippsConj_64fc(s_ij, s_ij_conj, L * Ki);
+
 				double trace_R = 0.0;
 
-				// Costruzione Matrice di Autocorrelazione R_mat e Vettore P_vec
 				for (int p1 = 0; p1 < P; p1++) {
-					Ipp64fc* S_p1 = &S_memory[i * P * L * Ki + p1 * L * Ki];
-
-					// P_vec[p1] = S_p1^H * s_ij
-					Ipp64fc p_val = { 0.0, 0.0 };
-					for (int k = 0; k < L * Ki; k++) {
-						p_val.re += S_p1[k].re * s_ij[k].re + S_p1[k].im * s_ij[k].im;
-						p_val.im += S_p1[k].re * s_ij[k].im - S_p1[k].im * s_ij[k].re;
-					}
-					P_vec[p1] = p_val;
+					Ipp64fc* S_p1_conj = &S_memory_conj[i * P * L * Ki + p1 * L * Ki];
+					ippsDotProd_64fc(S_p1_conj, s_ij, L * Ki, &P_vec[p1]);
 
 					for (int p2 = p1; p2 < P; p2++) {
 						Ipp64fc* S_p2 = &S_memory[i * P * L * Ki + p2 * L * Ki];
-
-						// R_mat[p1, p2] = S_p1^H * S_p2
-						Ipp64fc r_val = { 0.0, 0.0 };
-						for (int k = 0; k < L * Ki; k++) {
-							r_val.re += S_p1[k].re * S_p2[k].re + S_p1[k].im * S_p2[k].im;
-							r_val.im += S_p1[k].re * S_p2[k].im - S_p1[k].im * S_p2[k].re;
-						}
-
+						Ipp64fc r_val;
+						ippsDotProd_64fc(S_p1_conj, S_p2, L * Ki, &r_val);
 						R_mat[p1 * P + p2] = r_val;
-						if (p1 != p2) R_mat[p2 * P + p1] = { r_val.re, -r_val.im }; // Hermitiana
+						if (p1 != p2) R_mat[p2 * P + p1] = { r_val.re, -r_val.im };
 					}
 					trace_R += R_mat[p1 * P + p1].re;
 				}
 
-				// Regolarizzazione
 				double reg = 0.1 * trace_R / P + 1e-6;
 				for (int p1 = 0; p1 < P; p1++) R_mat[p1 * P + p1].re += reg;
 
-				// Risolutore Lineare (Decomposizione Cholesky In-Place)
-				bool chol_ok = true;
-				for (int r = 0; r < P; r++) {
-					for (int c = 0; c <= r; c++) {
-						Ipp64fc sum = R_mat[r * P + c];
-						for (int k = 0; k < c; k++) {
-							Ipp64fc L_rk = R_mat[r * P + k];
-							Ipp64fc L_ck = R_mat[c * P + k];
-							sum.re -= (L_rk.re * L_ck.re + L_rk.im * L_ck.im);
-							sum.im -= (L_rk.im * L_ck.re - L_rk.re * L_ck.im);
-						}
-						if (r == c) {
-							if (sum.re <= 0) { chol_ok = false; break; }
-							R_mat[r * P + c] = { sqrt(sum.re), 0.0 };
-						}
-						else {
-							double inv_Lcc = 1.0 / R_mat[c * P + c].re;
-							R_mat[r * P + c] = { sum.re * inv_Lcc, sum.im * inv_Lcc };
-						}
+				// Inversione manuale delle matrici
+				bool solver_ok = false;
+
+				if (P == 1) {
+					double det = R_mat[0].re;
+					if (det > 1e-30) { // Guardia contro matrici singolari
+						double invDet = 1.0 / det;
+						a_i[0] = { P_vec[0].re * invDet, P_vec[0].im * invDet };
+						solver_ok = true;
 					}
-					if (!chol_ok) break;
+				}
+				else if (P == 2) {
+					double R00 = R_mat[0].re, R11 = R_mat[3].re;
+					Ipp64fc R01 = R_mat[1], R10 = R_mat[2];
+
+					double det = R00 * R11 - (R01.re * R01.re + R01.im * R01.im);
+					if (det > 1e-30) { // Guardia contro matrici singolari
+						double invDet = 1.0 / det;
+						Ipp64fc p0 = P_vec[0], p1 = P_vec[1];
+						a_i[0].re = (R11 * p0.re - (R01.re * p1.re - R01.im * p1.im)) * invDet;
+						a_i[0].im = (R11 * p0.im - (R01.re * p1.im + R01.im * p1.re)) * invDet;
+						a_i[1].re = (-(R10.re * p0.re - R10.im * p0.im) + R00 * p1.re) * invDet;
+						a_i[1].im = (-(R10.re * p0.im + R10.im * p0.re) + R00 * p1.im) * invDet;
+						solver_ok = true;
+					}
+				}
+				else if (P == 3) {
+					double R00 = R_mat[0].re, R11 = R_mat[4].re, R22 = R_mat[8].re;
+					Ipp64fc R01 = R_mat[1], R02 = R_mat[2];
+					Ipp64fc R10 = R_mat[3], R12 = R_mat[5];
+					Ipp64fc R20 = R_mat[6], R21 = R_mat[7];
+
+					double C00 = R11 * R22 - (R12.re * R12.re + R12.im * R12.im);
+					Ipp64fc C01 = { (R12.re * R20.re - R12.im * R20.im) - R10.re * R22,
+									(R12.re * R20.im + R12.im * R20.re) - R10.im * R22 };
+					Ipp64fc C02 = { (R10.re * R21.re - R10.im * R21.im) - R11 * R20.re,
+									(R10.re * R21.im + R10.im * R21.re) - R11 * R20.im };
+
+					double det = R00 * C00 + (R01.re * C01.re - R01.im * C01.im) + (R02.re * C02.re - R02.im * C02.im);
+
+					if (det > 1e-30) { // Guardia contro matrici singolari
+						double invDet = 1.0 / det;
+						Ipp64fc C10 = { (R02.re * R21.re - R02.im * R21.im) - R01.re * R22,
+										(R02.re * R21.im + R02.im * R21.re) - R01.im * R22 };
+						double C11 = R00 * R22 - (R02.re * R02.re + R02.im * R02.im);
+						Ipp64fc C12 = { (R01.re * R20.re - R01.im * R20.im) - R00 * R21.re,
+										(R01.re * R20.im + R01.im * R20.re) - R00 * R21.im };
+
+						Ipp64fc C20 = { (R01.re * R12.re - R01.im * R12.im) - R02.re * R11,
+										(R01.re * R12.im + R01.im * R12.re) - R02.im * R11 };
+						Ipp64fc C21 = { (R02.re * R10.re - R02.im * R10.im) - R00 * R12.re,
+										(R02.re * R10.im + R02.im * R10.re) - R00 * R12.im };
+						double C22 = R00 * R11 - (R01.re * R01.re + R01.im * R01.im);
+
+						Ipp64fc p0 = P_vec[0], p1 = P_vec[1], p2 = P_vec[2];
+
+						a_i[0].re = (C00 * p0.re + (C10.re * p1.re - C10.im * p1.im) + (C20.re * p2.re - C20.im * p2.im)) * invDet;
+						a_i[0].im = (C00 * p0.im + (C10.re * p1.im + C10.im * p1.re) + (C20.re * p2.im + C20.im * p2.re)) * invDet;
+
+						a_i[1].re = ((C01.re * p0.re - C01.im * p0.im) + C11 * p1.re + (C21.re * p2.re - C21.im * p2.im)) * invDet;
+						a_i[1].im = ((C01.re * p0.im + C01.im * p0.re) + C11 * p1.im + (C21.re * p2.im + C21.im * p2.re)) * invDet;
+
+						a_i[2].re = ((C02.re * p0.re - C02.im * p0.im) + (C12.re * p1.re - C12.im * p1.im) + C22 * p2.re) * invDet;
+						a_i[2].im = ((C02.re * p0.im + C02.im * p0.re) + (C12.re * p1.im + C12.im * p1.re) + C22 * p2.im) * invDet;
+
+						solver_ok = true;
+					}
 				}
 
-				// Sostituzione Forward & Backward
-				if (chol_ok) {
-					// Forward: L * y = P_vec (salvato in P_vec)
-					for (int r = 0; r < P; r++) {
-						Ipp64fc sum = P_vec[r];
-						for (int c = 0; c < r; c++) {
-							Ipp64fc L_rc = R_mat[r * P + c];
-							Ipp64fc y_c = P_vec[c];
-							sum.re -= (L_rc.re * y_c.re - L_rc.im * y_c.im);
-							sum.im -= (L_rc.re * y_c.im + L_rc.im * y_c.re);
-						}
-						P_vec[r] = { sum.re / R_mat[r * P + r].re, sum.im / R_mat[r * P + r].re };
-					}
-					// Backward: L^H * a = y (salvato in a_i)
-					for (int r = P - 1; r >= 0; r--) {
-						Ipp64fc sum = P_vec[r];
-						for (int c = r + 1; c < P; c++) {
-							Ipp64fc L_cr = R_mat[c * P + r]; // L[c,r]
-							Ipp64fc a_c = a_i[c];
-							// sum -= L^H[r,c] * a_c = L[c,r]^* * a_c
-							sum.re -= (L_cr.re * a_c.re + L_cr.im * a_c.im); // Coniugato: img invertita
-							sum.im -= (L_cr.re * a_c.im - L_cr.im * a_c.re);
-						}
-						a_i[r] = { sum.re / R_mat[r * P + r].re, sum.im / R_mat[r * P + r].re };
-					}
-
-					// Calcolo del segnale Sbiancato: u_ij = s_ij - S_mat * a_i
+				// Lo sbiancamento viene applicato solo se l'inversione è andata a buon fine
+				if (solver_ok) {
 					for (int p = 0; p < P; p++) {
 						Ipp64fc neg_a = { -a_i[p].re, -a_i[p].im };
 						Ipp64fc* S_p = &S_memory[i * P * L * Ki + p * L * Ki];
@@ -327,25 +335,29 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					}
 				}
 
-				// Aggiornamento memoria dei regressori
-				ippsMove_64fc(&S_memory[i * P * L * Ki],
-					&S_memory[i * P * L * Ki + L * Ki],
-					(P - 1) * L * Ki);
+				// Shift e aggiornamento di entrambe le memorie (Normale e Coniugata) avvengono avvengono a prescindere
+				ippsMove_64fc(&S_memory[i * P * L * Ki], &S_memory[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
 				ippsCopy_64fc(s_ij, &S_memory[i * P * L * Ki], L * Ki);
+
+				ippsMove_64fc(&S_memory_conj[i * P * L * Ki], &S_memory_conj[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
+				ippsCopy_64fc(s_ij_conj, &S_memory_conj[i * P * L * Ki], L * Ki);
 			}
 
-			// Filtraggio adattativo
+			// 6. Aggiornamento Pesi
 			double norm_u_val;
 			ippsNorm_L2_64fc64f(u_ij, L * Ki, &norm_u_val);
 			double norm_u = norm_u_val * norm_u_val;
 
 			Ipp64fc* H_sub_i = &H_sub[i * M * L * Ki];
 
+			// Coniugato di u_ij, necessario per la formula di update
+			ippsConj_64fc(u_ij, u_ij_conj, L * Ki);
+
 			for (int m = 0; m < M; m++) {
 				Ipp64fc y_hat = { 0.0, 0.0 };
 				Ipp64fc* H_row = &H_sub_i[m * L * Ki];
 
-				// Prodotto scalare senza coniugazione
+				// Calcolo errore
 				ippsDotProd_64fc(H_row, s_ij, L * Ki, &y_hat);
 
 				Ipp64fc y_actual = y_sub[(m * I + i) * sub_frames + k_local];
@@ -355,33 +367,15 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				double step_size = mu_h * w_i[i] / (norm_u + delta_h);
 				Ipp64fc update_factor = { e.re * step_size, e.im * step_size };
 
-				// Aggiornamento pesi esplicito
-				for (int lk = 0; lk < L * Ki; lk++) {
-					// H = H + update_factor * u_ij^*
-					H_row[lk].re += update_factor.re * u_ij[lk].re + update_factor.im * u_ij[lk].im;
-					H_row[lk].im += update_factor.im * u_ij[lk].re - update_factor.re * u_ij[lk].im;
-				}
+				// H = H + u_ij* * update_factor
+				ippsAddProductC_64fc(u_ij_conj, update_factor, H_row, L * Ki);
 			}
-		} // Fine ciclo Sottobande
+		}
 
 		global_k++;
-	} // Fine ciclo Decimazione (k_local)
-
-	// Aggiornamento del contatore di sintesi
-	global_n = temp_global_n;
-
-	if (request_rir_save) {
-		time_t now = time(0);
-		struct tm tstruct;
-		localtime_s(&tstruct, &now);
-		char timestamp[80];
-		strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tstruct);
-
-		sprintf(rir_filename, "%s_EstimatedRIR.dat", timestamp);
-		SaveEstimatedRIR(rir_filename);
-
-		request_rir_save = false;
 	}
+
+	global_n = temp_global_n;
 
 	return COMPLETED;
 }
@@ -400,12 +394,17 @@ void __stdcall PlugIn::LEPlugin_Init()
 	global_n = 0;
 	init_vector(overlap_x, L * (filter_len - 1));
 	init_vector(overlap_y, M * (filter_len - 1));
-	init_vector(state_syn, L * I * (filter_len - 1));
+	init_vector(state_syn, L * I * (filter_len * 2));
 	init_vector(H_sub, I * L * M * Ki);
 	init_vector(s_state, I * L * Ki);
 	if (s_head_idx == 0) {
 		s_head_idx = (int*)malloc(I * L * sizeof(int));
 		memset(s_head_idx, 0, I * L * sizeof(int));
+	}
+
+	if (syn_head == 0) {
+		syn_head = (int*)malloc(I * L * sizeof(int));
+		memset(syn_head, filter_len - 1, I * L * sizeof(int));
 	}
 	init_vector(S_memory, I * P * L * Ki);
 	init_vector(tmp_x_full, L*(FrameSize + filter_len - 1));
@@ -424,6 +423,11 @@ void __stdcall PlugIn::LEPlugin_Init()
 	init_vector(P_vec, P);
 	init_vector(overlap_out_x, L * (filter_len - 1));
 	init_vector(tmp_out_x_full, L * (FrameSize + filter_len - 1));
+	init_vector(h_ana_re_rev, I * filter_len);
+	init_vector(h_ana_im_rev, I * filter_len);
+	init_vector(u_ij_conj, L * Ki);
+	init_vector(s_ij_conj, L * Ki);
+	init_vector(S_memory_conj, I * P * L * Ki);
 
 	// Caricamento dei tappi del filtro prototipo
 	read_dat(save_name, taps, filter_len);
@@ -440,6 +444,7 @@ void __stdcall PlugIn::LEPlugin_Init()
 	}
 
 	// Calcolo dei filtri complessi modulati
+	/*
 	for (int i = 0; i < I; i++) {
 		for (int m = 0; m < filter_len; m++) {
 			double angle = (2.0 * M_PI * i * m) / I;
@@ -464,6 +469,32 @@ void __stdcall PlugIn::LEPlugin_Init()
 			double real_part = cos(angle);
 			double imag_part = sin(angle);
 			dft_rot_syn[i * I + n_mod] = Ipp64fc{ real_part, imag_part };
+		}
+	}
+	*/
+
+	for (int i = 0; i < I; i++) {
+		for (int m = 0; m < filter_len; m++) {
+			double angle = (2.0 * M_PI * i * m) / I;
+			double real_part = taps[m] * cos(angle);
+			double imag_part = taps[m] * sin(angle);
+
+			h_ana_complex[i * filter_len + m] = Ipp64fc{ real_part, imag_part };
+
+			// COSTRUZIONE DEI FILTRI INVERTITI PER IPPSDOTPROD
+			// Invertiamo l'ordine spaziale: indice (filter_len - 1 - m)
+			h_ana_re_rev[i * filter_len + (filter_len - 1 - m)] = real_part;
+			h_ana_im_rev[i * filter_len + (filter_len - 1 - m)] = imag_part;
+		}
+
+		for (int k_mod = 0; k_mod < I; k_mod++) {
+			double angle = -(2.0 * M_PI * i * (k_mod * D) / I);
+			dft_rot_ana[i * I + k_mod] = Ipp64fc{ cos(angle), sin(angle) };
+		}
+
+		for (int n_mod = 0; n_mod < I; n_mod++) {
+			double angle = (2.0 * M_PI * i * n_mod) / I;
+			dft_rot_syn[i * I + n_mod] = Ipp64fc{ cos(angle), sin(angle) };
 		}
 	}
 
@@ -495,6 +526,10 @@ void __stdcall PlugIn::LEPlugin_Delete()
 		free(s_head_idx);
 		s_head_idx = 0;
 	}
+	if (syn_head != 0) {
+		free(syn_head);
+		syn_head = 0;
+	}
 	destroy_vector(S_memory);
 	destroy_vector(tmp_x_full);
 	destroy_vector(tmp_y_full);
@@ -511,6 +546,11 @@ void __stdcall PlugIn::LEPlugin_Delete()
 	destroy_vector(P_vec);
 	destroy_vector(overlap_out_x);
 	destroy_vector(tmp_out_x_full);
+	destroy_vector(h_ana_re_rev);
+	destroy_vector(h_ana_im_rev);
+	destroy_vector(u_ij_conj);
+	destroy_vector(s_ij_conj);
+	destroy_vector(S_memory_conj);
 }
 
 PlugIn::~PlugIn(void)
@@ -612,7 +652,7 @@ void __stdcall PlugIn::LESetParameter(int Index,void *Data,LPVOID bBroadCastInfo
 
 	if (Index == IDX_P) {
 		int new_P = *(int*)Data;
-		if (new_P != P) {
+		if ((new_P != P) && (new_P <= 3)) {
 			P = new_P;
 			CBFunction(this, NUTS_UPDATERTWATCH, IDX_P, 0);
 		}
@@ -660,16 +700,6 @@ void __stdcall PlugIn::LESetParameter(int Index,void *Data,LPVOID bBroadCastInfo
 		if (new_samples != K) {
 			K = new_samples;
 			CBFunction(this, NUTS_UPDATERTWATCH, IDX_RIR_SAMPLES, 0);
-		}
-		return;
-	}
-
-	if (Index == IDX_SAVE_RIR_TRIGGER) {
-		int trigger = *(int*)Data;
-		if (trigger == 1) {
-			request_rir_save = true;
-			int reset_val = 0;
-			CBFunction(this, NUTS_UPDATERTWATCH, IDX_SAVE_RIR_TRIGGER, &reset_val);
 		}
 		return;
 	}
@@ -845,6 +875,7 @@ void __stdcall PlugIn::LERTWatchInit()
 	CBFunction(this, NUTS_ADDRTWATCH, 0, (LPVOID)&delta_hWatch);
 
 	// Watch per il salvataggio manuale della rir
+	/*
 	WatchType SaveWatch;
 	memset(&SaveWatch, 0, sizeof(WatchType));
 	SaveWatch.EnableWrite = true;
@@ -853,6 +884,7 @@ void __stdcall PlugIn::LERTWatchInit()
 	SaveWatch.IDVar = IDX_SAVE_RIR_TRIGGER;
 	sprintf(SaveWatch.VarName, "TRIGGER: Save RIR to File");
 	CBFunction(this, NUTS_ADDRTWATCH, 0, (LPVOID)&SaveWatch);
+	*/
 }
 
 void __stdcall PlugIn::LESampleRateChange(int NewVal,int TrigType)

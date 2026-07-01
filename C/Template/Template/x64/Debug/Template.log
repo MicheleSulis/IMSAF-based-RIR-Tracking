@@ -8,7 +8,7 @@ C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\LEEffect.h(226,14): 
   (compilazione del file di origine '/PlugIn.cpp')
   
 C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\numbers(11): warning STL4038: The contents of <numbers> are available only with C++20 or later.
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(391,11): warning C4244: '=': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(386,11): warning C4244: '=': conversione da 'double' a 'int'. Possibile perdita di dati.
   (compilazione del file di origine '/PlugIn.cpp')
   
   Template.cpp

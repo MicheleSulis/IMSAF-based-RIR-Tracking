@@ -83,13 +83,18 @@ public:
 private:
 	// Nel codice matlab filter_len = V
 	int FrameSize,SampleRate, filter_len, L, M, I, D, P, K, Ki;
-	// int num_input, num_output;
 	char save_name[MAX_FILE_NAME_LENGTH];
-	double delta_h, mu_h, fs;
+	double delta_h, mu_h;
 	// Tappi del filtro prototipo
 	Ipp64f* taps;
 	// Filtri complessi modulati per l'analisi, di lunghezza I*V
 	Ipp64fc* h_ana_complex;
+	// Parte reale del filtro di analisi invertita
+	Ipp64f* h_ana_re_rev;
+	// Parte immaginaria del filtro di analisi invertita
+	Ipp64f* h_ana_im_rev;
+	// Buffer per il coniugato di u_ij
+	Ipp64fc* u_ij_conj;
 	// esponenziali DFT per l'analisi, di dimensione I*I
 	Ipp64fc* dft_rot_ana;
 	// esponenziali iDFT per la sintesi, di dimensione I*I
@@ -114,6 +119,8 @@ private:
 	Ipp64fc* s_state;
 	// Indici per usare s_state come memoria FIFO circolare, di dimensione I*L
 	int* s_head_idx;
+	// Buffer circolare per la sintesi degli speaker
+	int* syn_head;
 	// Memoria dei predittori per decorrelazione, di dimensione I*P*L*Ki
 	Ipp64fc* S_memory; 
 
@@ -147,6 +154,10 @@ private:
 	// Vettore di correlazione incrociata S^H * s, di dimensione P
 	Ipp64fc* P_vec;
 	// Flag per salvare la RIR stimata quando richiesto
+
+	// Buffer per i vettori coniugati in modo da poter usare le ipp per i calcoli
+	Ipp64fc* s_ij_conj;
+	Ipp64fc* S_memory_conj;
 
 	Ipp64f* overlap_out_x;
 	Ipp64f* tmp_out_x_full;
