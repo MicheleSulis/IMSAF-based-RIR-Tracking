@@ -361,6 +361,9 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				ippsSub_64fc(&y_hat, &y_actual, &e, 1);
 
 				double step_size = mu_h * w_i[i] / (norm_u + delta_h);
+				if (step_size > 1.5) {
+					step_size = 1.5;
+				}
 				Ipp64fc update_factor = { e.re * step_size, e.im * step_size };
 
 				// H = H + u_ij* * update_factor
@@ -400,7 +403,9 @@ void __stdcall PlugIn::LEPlugin_Init()
 
 	if (syn_head == 0) {
 		syn_head = (int*)malloc(I * L * sizeof(int));
-		memset(syn_head, filter_len - 1, I * L * sizeof(int));
+		for (int idx = 0; idx < I * L; idx++) {
+			syn_head[idx] = filter_len - 1;
+		}
 	}
 	init_vector(S_memory, I * P * L * Ki);
 	init_vector(tmp_x_full, L*(FrameSize + filter_len - 1));
@@ -444,6 +449,7 @@ void __stdcall PlugIn::LEPlugin_Init()
 	else {
 		// Distribuzione lineare degli sfasamenti nelle sottobande al variare di I
 		// Le righe sopra sono pensate per I=8 e, passando da I=8 a I=16, si hanno problemi nell'algoritmo
+		
 		for (int i = 0; i < I; i++) {
 			double alpha_deg = 20.0 + (160.0 * i) / (I - 1);
 			alpha_rad[i] = alpha_deg * (M_PI / 180.0);
