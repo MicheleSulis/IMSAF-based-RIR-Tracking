@@ -154,11 +154,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				// Calcolo convoluzione
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				Ipp64fc* state_ptr = &state_syn[base_idx + head];
-
-				for (int v = 0; v < filter_len; v++) {
-					filter_out.re += state_ptr[v].re * taps[v];
-					filter_out.im += state_ptr[v].im * taps[v];
-				}
+				ippsDotProd_64f64fc(taps, state_ptr, filter_len, &filter_out);
 
 				Ipp64fc rotor_syn = dft_rot_syn[i * I + n_mod];
 				out_val += (filter_out.re * rotor_syn.re - filter_out.im * rotor_syn.im);
@@ -433,15 +429,27 @@ void __stdcall PlugIn::LEPlugin_Init()
 	read_dat(save_name, taps, filter_len);
 
 	// Costruzione degli angoli per la modulazione di fase
-	for (int i = 0; i < I; i++) {
-		double alpha_deg = 0.0;
-		if (i <= 3) alpha_deg = 20.0;
-		else if (i == 4) alpha_deg = 40.0;
-		else if (i == 5) alpha_deg = 70.0;
-		else if (i == 6) alpha_deg = 90.0;
-		else alpha_deg = 180.0;
-		alpha_rad[i] = alpha_deg * (M_PI / 180.0);
+	
+	if (I == 8) {
+		for (int i = 0; i < I; i++) {
+			double alpha_deg = 0.0;
+			if (i <= 3) alpha_deg = 20.0;
+			else if (i == 4) alpha_deg = 40.0;
+			else if (i == 5) alpha_deg = 70.0;
+			else if (i == 6) alpha_deg = 90.0;
+			else alpha_deg = 180.0;
+			alpha_rad[i] = alpha_deg * (M_PI / 180.0);
+		}
 	}
+	else {
+		// Distribuzione lineare degli sfasamenti nelle sottobande al variare di I
+		// Le righe sopra sono pensate per I=8 e, passando da I=8 a I=16, si hanno problemi nell'algoritmo
+		for (int i = 0; i < I; i++) {
+			double alpha_deg = 20.0 + (160.0 * i) / (I - 1);
+			alpha_rad[i] = alpha_deg * (M_PI / 180.0);
+		}
+	}
+
 
 	// Calcolo dei filtri complessi modulati
 	/*
