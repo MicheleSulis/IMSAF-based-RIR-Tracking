@@ -4,12 +4,12 @@ close all;
 L = 2; % numero di altoparlanti (numero di canali)
 M = 2; % numero di microfoni
 M_plotted = 1;
-L_plotted = 1;
-I = 16; % numero di sottobande
-D = 4; % fattore di decimazione
-P = 2; % P = 0: nessuna decorrelazione
-mu_h = 0.2;
-delta_h = 1e-2;  
+L_plotted = 2;
+I = 8; % numero di sottobande
+D = 2; % fattore di decimazione
+P = 0; % P = 0: nessuna decorrelazione
+mu_h = 0.32;
+delta_h = 1e-3;  
 delta_ap = 1e-1;
 K = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
 offset = 100; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
@@ -21,7 +21,8 @@ N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 % canali. Utile per mostrare che la struttura dell'algoritmo di tracking è
 % corretta
 % - 'false': viene usato un segnale reale, inviato sui vari canali.
-x_test = false;
+x_test = true;
+colored_noise = false;
 
 % Flag per scegliere il segnale di ingresso quando x_test è false
 x_type = 2;
@@ -112,26 +113,14 @@ elseif (x_type == 2)
     end
 end
 
-% Rumore marrone: sono riportate le prestazioni in termini di NM
-% Canali scorrelati
-%   -55dB dopo 383 iterazioni @ P=0;
-%   -55dB dopo  82 iterazioni @ P=2.
-% Canali correlati
-%    -8dB dopo 470 iterazioni @ P=0;
-%    -8dB dopo 326 iterazioni @ P=2.
-% In entrambi i casi i floor sono paragonabili tra di loro e rispetto a
-% x_mono = rumore bianco. Le convergenze sono rispettivamente 4.67 e 1.44
-% volte più veloci passando da P=0 a P=2, provando, come affermato 
-% nell'articolo che lo sbiancamento migliora la velocità di convergenza e 
-% non il floor del NM.
-% x_mono = filter(1,[1 -0.9],x_mono);
-
 % Modulazione di fase per decorrelare
 s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
 if (x_test)
     x_speakers = randn(N_recon, L);
-    % x_speakers = filter(1,[1 -0.9], x_speakers); % Rumore marrone
+    if(colored_noise)
+        x_speakers = filter(1,[1 -0.9], x_speakers); % Rumore marrone
+    end
 else
     x_speakers = zeros(N_recon, L);
     for l = 1:L
