@@ -4,10 +4,11 @@
 \usepackage[T1]{fontenc}
 \usepackage[italian]{babel}
 \usepackage[margin=2.5cm]{geometry}
+\usepackage{float}
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{amsmath}
 \usepackage{siunitx}
-\usepackage{float}
 \usepackage[hidelinks]{hyperref}
 
 \usepackage{pgfplots}
@@ -22,6 +23,7 @@
 \newacronym{mimo}{MIMO}{Multiple-Input Multiple-Output}
 \newacronym{siso}{SISO}{Single-Input Single-Output}
 \newacronym{nlms}{NLMS}{Normalized Least Mean Square}
+\newacronym{nm}{NM}{Normalized Misalignment}
 
 \title{IMSAF based RIR tracking}
 \author{Michele Sulis \and Mauro Michele Maria Costantino}
@@ -32,26 +34,29 @@
 
 %% Introduzione (report cronologico)
 %%
+%% Preambolo teorico [?, non ci ho pensato prima, non so se è il caso, chiedere alla prof, ma lo lascerei all'ultimo]
+%%      Banco DFT 
+%% 		Schema a blocchi (riadattato dal paper, senza sfc)
+%%
 %% Simulazioni (MATLAB)
-%% SISO 
-%% (introduzione)
-%% 		Confronto filtri (plot in frequenza)
-%% 		Confronto risultati
-%% 			NM
-%%			RIR Tempo (fatta bene)
-%% 			RIR Frequenza (fatta bene)
-%% MIMO
-%% (introduzione)
-%% 		Ingressi scorrelati (-60 dB)
-%%		MIMO con correlazione realistica (-9 dB)
-%%		Ruolo della decorrelazione intra-canale (P) - analisi con rumore colorato
-%%		Segnali stereo e test vari
-%%		HWR (risultati e analisi)
-%%	
-%% [Funzionalità ulteriori che la prof ci può far implementare]
+%%  	SISO 
+%% 			(introduzione)
+%% 			Confronto filtri (plot in frequenza)
+%% 			Confronto risultati
+%% 				NM
+%%				RIR Tempo (fatta bene)
+%% 				RIR Frequenza (fatta bene)
+%% 		MIMO
+%% 			(introduzione)
+%% 			Ingressi scorrelati (-60 dB)
+%%			MIMO con correlazione realistica (-9dB)
+%%			Ruolo della decorrelazione intra-canale (P) - analisi con rumore colorato
+%%			Segnali stereo e test vari
+%%			HWR (risultati e analisi)
 %%
 %% Implementazione (C/C++)
 %%		[...]
+%%
 %% Risultati finali e futuri sviluppi
 
 \begin{document}
@@ -121,16 +126,16 @@
 	
 	\subsubsection{Confronto dei risultati}
 	
-	\paragraph{Normalized misalignment (NM)}
-	A parità di lunghezza dei due prototipi, il NM evidenzia un comportamento nettamente diverso (Figura \ref{fig:nm_prot}).
-	Con il coseno rialzato il NM decresce in modo regolare lungo tutta la durata dell'adattamento, scendendo fino a circa \SI{-40}{\decibel}.
+	\paragraph{Normalized misalignment (\ac{nm})}
+	A parità di lunghezza dei due prototipi, il \ac{nm} evidenzia un comportamento nettamente diverso (Figura \ref{fig:nm_prot}).
+	Con il coseno rialzato il \ac{nm} decresce in modo regolare lungo tutta la durata dell'adattamento, scendendo fino a circa \SI{-40}{\decibel}.
 	Con il prototipo Kaiser, invece, la curva tende a spianare verso un valore limite più alto, attorno a \SI{-20}{\decibel}.
 	
 	Poiché i due filtri hanno la stessa lunghezza, la differenza di prestazioni non è attribuibile a tale fattore, bensì alle proprietà del prototipo.
 	Da un lato, il coseno rialzato presenta una transizione più ripida (Figura \ref{fig:mag_prot}) che riduce la sovrapposizione tra sottobande adiacenti e quindi l'aliasing; dall'altro, soddisfa la condizione di complementarietà in potenza, per cui la somma dei moduli quadri delle risposte è prossima a una costante, garantendo una ricostruzione fedele del segnale che transita il banco.
 	Il filtro di Kaiser, non essendo progettato per soddisfare tale condizione, introduce invece un errore di ricostruzione residuo.
 	
-	Si è inoltre osservato che il filtro di Kaiser risulta fortemente sensibile alla scelta dei suoi parametri (ordine e $\beta$): piccole variazioni producono spostamenti significativi del floor del NM, talora con filtri di lunghezza maggiore che forniscono prestazioni peggiori.
+	Si è inoltre osservato che il filtro di Kaiser risulta fortemente sensibile alla scelta dei suoi parametri (ordine e $\beta$): piccole variazioni producono spostamenti significativi del floor del \ac{nm}, talora con filtri di lunghezza maggiore che forniscono prestazioni peggiori.
 	L'individuazione di una configurazione adeguata richiede una ricerca per tentativi, mentre il coseno rialzato garantisce una ricostruzione accurata senza necessità di tuning.
 	
 	Il banco basato sul coseno rialzato presenta quindi un comportamento complessivamente più regolare e prevedibile. 
@@ -270,28 +275,61 @@
 	Come primo passo si considera il caso in cui i segnali di eccitazione dei diversi canali siano statisticamente indipendenti (rumore bianco generato indipendentemente per ogni altoparlante).
 	Questa configurazione non corrisponde allo scenario reale, ma rappresenta il caso ideale in cui il problema di identificabilità è risolto per costruzione: serve a verificare che la struttura dell'algoritmo di tracciamento MIMO sia corretta.
 	
-	In queste condizioni il NM (Figura \ref{fig:nm_mimo_ind}) converge rapidamente verso valori molto bassi.
+	In queste condizioni il \ac{nm} (Figura \ref{fig:nm_mimo_ind}) converge rapidamente verso valori molto bassi.
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/nm_mimo_ideal}
-		\caption{NM nel caso MIMO con ingressi scorrelati (caso ideale). Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
+		\caption{\ac{nm} nel caso \ac{mimo} con ingressi scorrelati (caso ideale). Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
 		\label{fig:nm_mimo_ind}
 	\end{figure}
 	
-	%TODO: mettere i dettagli dell'algoritmo che differiscono dall'implementazione SISO. Mettere il plot della risposta stimata sia nel tempo che in frequenza, con i relativi commenti.
+	Rispetto al caso \ac{siso}, l'estensione \ac{mimo} introduce alcune differenze nell'algoritmo.
+	Il sistema non stima più una singola RIR, ma l'intera matrice di risposte tra ogni coppia altoparlante-microfono.
+	In ciascuna sottobanda, il filtro adattativo diventa quindi una matrice $\mathbf{\hat{H}}_i$ di dimensione $M\times(L\cdot K_i)$, e l'errore di stima è calcolato simultaneamente su M microfoni.
+	
+	Una conseguenza diretta riguarda la metrica di valutazione.
+	Nel caso \ac{siso} il \ac{nm} confronta due vettori; nel caso \ac{mimo} si deve invece sintetizzare in un unico scalare l'errore su tutte le $M\times L$ risposte.
+	A tale scopo si impiega la \emph{norma di Frobenius}, che estende il concetto di norma euclidea a una matrice considerando la radice della somma dei quadrati di tutti i suoi elementi:
+	
+	\begin{equation}
+		\mathrm{NM}=20\log_{10}
+		\frac{\lVert\mathbf{H}-\mathbf{\hat{H}}\rVert_F}{\lVert\mathbf{H}\rVert_F},
+		\qquad
+		\lVert\mathbf{A}\rVert_F=\sqrt{\sum_{i,j} \lvert a_{ij}\rvert^2}.
+	\end{equation}
+	
+	In questo modo l'intera collezione di RIR (vere e stimate) viene trattata come un unico oggetto, e il rapporto tra l'energia dell'errore e quella delle risposte vere fornisce un'unica misura di accuratezza, espressa in dB.
+	
+	Come atteso, la stima ottenuta è praticamente perfetta: la \ac{rir} ricostruita (Figura \ref{fig:rir_mimo}) si sovrappone a quella reale sia nel dominio del tempo sia in quello della frequenza, senza scostamenti apprezzabili.
+	Il test conferma quindi quanto anticipato: in assenza del problema di identificabilità, la struttura dell'algoritmo \ac{mimo} di tracciamento è corretta e ricostruisce fedelmente le risposte impulsive.
+	
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{plots/rir_time_decorr}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{plots/rir_spectrum_decorr}
+		\end{subfigure}
+		\caption{\ac{rir} stimata nel caso \ac{mimo} con ingressi scorrelati, confrontata con quella reale: dominio del tempo a sinistra e dominio della frequenza a destra.}
+		\label{fig:rir_mimo}
+	\end{figure}
 	
 	\subsubsection{Correlazione realistica tra canali}
-	Nello scenario realistico, in assenza del blocco SFC, un'unica sorgente viene replicata sui diversi canali, che risultano quindi fortemente correlati.
+	Nello scenario realistico, in assenza del blocco \ac{sfc}, un'unica sorgente viene replicata sui diversi canali, che risultano quindi fortemente correlati.
 	Per ripristinare l'identificabilità si applica una decorrelazione mediante \emph{modulazione di fase} in sottobanda, secondo lo schema riportato in letteratura \cite{11249060}: ogni sottobanda di ciascun canale viene modulata da una fase sinusoidale dipendente dal canale e dall'indice sottobanda.
 	
-	In queste condizioni il NM (Figura \ref{fig:nm_mimo_corr}) raggiunge un valore limite (\emph{floor}) significativamente più alto rispetto al caso ideale (circa \SI{-9}{\decibel}).
+	In queste condizioni il \ac{nm} (Figura \ref{fig:nm_mimo_corr}) raggiunge un valore limite (\emph{floor}) significativamente più alto rispetto al caso ideale (circa \SI{-10}{\decibel}).
 	Questo comportamento si interpreta osservando che la modulazione di fase agisce esclusivamente sulla fase del segnale e non sul suo modulo: due canali che partono identici mantengono, dopo la modulazione, lo stesso spettro di ampiezza, restando quindi coerenti in modulo.
 	Con RIR reali, il cui spettro di ampiezza presenta una struttura ricca e informativa, questa coerenza residua di modulo limita la capacità di separare i canali, fissa un floor più elevato sull'errore e rallenta la velocità di convergenza.
 	
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/nm_mimo_correlated_noise}
-		\caption{NM nel caso MIMO con canali correlati e decorrelazione tramite modulazione di fase. Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
+		\caption{\ac{nm} nel caso \ac{mimo} con canali correlati e decorrelazione tramite modulazione di fase. Frequenza di campionamento $f_s=\SI{16}{\kilo\hertz}$.}
 		\label{fig:nm_mimo_corr}
 	\end{figure}
 	
@@ -307,6 +345,38 @@
 	Questo conferma quanto riportato in letteratura \cite{11249060}: lo sbiancamento dell'ingresso migliora la velocità di adattamento ma non il livello di errore a regime, che dipende da altri fattori (tra cui aliasing del banco, identificabilità).
 	
 	%TODO: aggiungere i confronti dei NM sullo stesso grafico con tikz, convertire le iterazioni in secondi e correggere il testo, aggiungere il riferimento alla figura nel testo.
+	\begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, %xmax=8000,
+				x tick label style={/pgf/number format/1000 sep={}},
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.55\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=0.8pt] table [x index=0, y index=1] {plots/nm_decorr_P0_d20.dat};
+				\addlegendentry{P=0}
+				\addplot[matlabblue, line width=0.8pt] table [x index=0, y index=1] {plots/nm_decorr_P2_d20.dat};
+				\addlegendentry{P=2}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto nel dominio della frequenza tra la RIR reale e le RIR stimate con i due prototipi.}
+		\label{fig:nm}
+	\end{figure}
 	
 	\subsubsection{Segnali reali e gestione pratica}
 	Il passaggio da segnali sintetici a segnali audio reali introduce alcune problematiche pratiche, affrontate con due accorgimenti.
@@ -342,7 +412,10 @@
 		\label{fig:rir_spec_mono}
 	\end{figure}
 
-	Al contrario, le Figure \ref{fig:nm_stereo_real}, \ref{fig:rir_spec_stereo} evidenziano che, quando i segnali trasmessi sui canali sono diversi (seppur leggermente, come avviene nel caso di due componenti di un segnale stereo), le operazioni di decorrelazione hanno un risultato migliore e portano a tracking molto più accurati. In questo caso, infatti, il confronto tra le Figure \ref{fig:nm_mono_real} e \ref{fig:nm_stereo_real} mostra che con segnali diversificati il NM scende regolarmente allo scorrere dei campioni. Inoltre, dalle Figure \ref{fig:rir_spec_mono} e \ref{fig:rir_spec_stereo} si evince che il contenuto spettrale della \ac{rir} ricostruita con segnali stereo risulta essere molto più vicino a quello della \ac{rir} reale, introducendo un significativo miglioramento nel tracking delle basse frequenze. Anche il tracking delle alte frequenze migliora notevolemente ma continua a soffrire il fatto che i segnali di ingresso, in quanto segnali audio reali, sono tipicamente passa-basso e, per tale ragione, le loro sottobande relative alle frequenze più alte hanno energie molto basse.
+	Al contrario, le Figure \ref{fig:nm_stereo_real}, \ref{fig:rir_spec_stereo} evidenziano che, quando i segnali trasmessi sui canali sono diversi (seppur leggermente, come avviene nel caso di due componenti di un segnale stereo), le operazioni di decorrelazione hanno un risultato migliore e portano a tracciamenti molto più accurati.
+	In questo caso, infatti, il confronto tra le Figure \ref{fig:nm_mono_real} e \ref{fig:nm_stereo_real} mostra che con segnali diversificati il NM scende regolarmente allo scorrere dei campioni. 
+	Inoltre, dalle Figure \ref{fig:rir_spec_mono} e \ref{fig:rir_spec_stereo} si evince che il contenuto spettrale della \ac{rir} ricostruita con segnali stereo risulta essere molto più vicino a quello della \ac{rir} reale, introducendo un significativo miglioramento nel tracciamento delle basse frequenze. 
+	Anche il tracciamento delle alte frequenze migliora notevolemente ma continua a soffrire il fatto che i segnali di ingresso, in quanto segnali audio reali, sono tipicamente passa-basso e, per tale ragione, le loro sottobande relative alle frequenze più alte hanno energie molto basse.
 	\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{plots/nm_stereo_real.pdf}
@@ -357,6 +430,15 @@
 		\label{fig:rir_spec_stereo}
 	\end{figure}
 	%TODO: aggiungere dettagli dell'algoritmo se me li sono dimenticati (oltre a quelli già descritti). Inserire NM, RIR nel tempo e in frequenza e i relativi commenti.
+	
+	%TODO: la prof ci ha chiesto di aumentare le sottobande via via e provare: si potrebbe fare un plot con tikz all'aumentare delle sottobande del NM (16->32->64 e D/2)
+	
+	%TODO: ci ha detto anche di provare ad aumentare le RIR (tipo un 2x4)
+	
+	%TODO: ascoltare il risultato (con sound), magari riportare una sottosezione ma sviluppare il codice
+	
+	%\subsubsection{Decorrelazione tramite half-wave rectifier (HWR)}
+	%TODO: se ho tempo la implemento in MATLAB come prova (magari con \texttt{sound()} per sentire se effettivamente distorce il suono in maniera apprezzabile oppure no). Sempre se faccio in tempo e se i risultati sono accettabili la riporto, altrimenti questa sezione verrà cestinata.
 	
 	%\section{Implementazione (C/C++)}
 	%TODO?

@@ -21,7 +21,8 @@ N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 % canali. Utile per mostrare che la struttura dell'algoritmo di tracking è
 % corretta
 % - 'false': viene usato un segnale reale, inviato sui vari canali.
-x_test = false;
+x_test = true;
+colored_noise = false;
 
 % Flag per scegliere il segnale di ingresso quando x_test è false
 x_type = 2;
@@ -131,7 +132,9 @@ s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
 % Sintesi dei segnati decorrelati in fullband
 if (x_test)
     x_speakers = randn(N_recon, L);
-    % x_speakers = filter(1,[1 -0.9], x_speakers); % Rumore marrone
+    if(colored_noise)
+        x_speakers = filter(1,[1 -0.9], x_speakers); % Rumore marrone
+    end
 else
     x_speakers = zeros(N_recon, L);
     for l = 1:L

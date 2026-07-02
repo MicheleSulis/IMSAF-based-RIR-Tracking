@@ -6,7 +6,7 @@ M = 1; % numero di microfoni
 I = 64; % numero di sottobande
 D = 16; % fattore di decimazione
 %V = 6*I+1; % lunghezza del filtro prototipo per il banco DFT
-V = 1025;
+V = 129;
 fs = 16000; % Frequenza di campionamento
 
 K_vis = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
@@ -67,7 +67,7 @@ H_subband = zeros(I, Ki); % Dimensione I x Ki
 % l'algoritmo converge dopo 1000 campioni
 
 % prototype_dft_filter = fir1(V-1, 1/I);
-% prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 1));
+ prototype_dft_filter = fir1(V-1, 1/I, kaiser(V, 12));
 % prototype_dft_filter = firceqrip(V-1, 1/I, [0.05 0.03]);
 % prototype_dft_filter = prototype_dft_filter / sum(prototype_dft_filter);
 
@@ -76,8 +76,8 @@ H_subband = zeros(I, Ki); % Dimensione I x Ki
 % span = 128;
 beta = 0.6;
 span = 16;
-prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
-prototype_dft_filter = prototype_dft_filter / sqrt(I);
+%prototype_dft_filter = rcosdesign(beta, span, I, "sqrt");
+%prototype_dft_filter = prototype_dft_filter / sqrt(I);
 % Plot della risposta del filtro prototipo
 figure;
 freqz(prototype_dft_filter, 1, 512);
