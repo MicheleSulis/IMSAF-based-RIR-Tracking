@@ -8,7 +8,7 @@ L_plotted = 1;
 I = 16; % numero di sottobande
 D = 4; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
-mu_h = 0.2;
+mu_h = 0.32;
 delta_h = 1e-2;  
 delta_ap = 1e-1;
 K = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)

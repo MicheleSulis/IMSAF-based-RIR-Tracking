@@ -1,5 +1,4 @@
 #pragma once
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include "LEEffect.h"
 #include "ipp.h"
@@ -161,7 +160,11 @@ private:
 
 	Ipp64f* overlap_out_x;
 	Ipp64f* tmp_out_x_full;
-	bool request_rir_save;
+	
+	Ipp64f* w_raw;
+	Ipp64f* power;
+	double global_max_power;
+
 	char rir_filename[MAX_PATH];
 
 	void SaveEstimatedRIR(const char* filename);

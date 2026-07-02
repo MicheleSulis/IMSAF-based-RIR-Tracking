@@ -9,7 +9,7 @@ PlugIn::PlugIn(InterfaceType _CBFunction,void * _PlugRef,HWND ParentDlg): LEEffe
 	SampleRate = CBFunction(this,NUTS_GET_FS_SR,1,(LPVOID)AUDIOPROC);	
 	
 	memset(save_name, 0, MAX_FILE_NAME_LENGTH * sizeof(char));
-	delta_h = 0.001;
+	delta_h = 0.01;
 	mu_h = 0.32;
 	P = 2;
 	M = 2;
@@ -54,12 +54,23 @@ PlugIn::PlugIn(InterfaceType _CBFunction,void * _PlugRef,HWND ParentDlg): LEEffe
 	u_ij_conj = 0;
 	s_ij_conj = 0;
 	S_memory_conj = 0;
+
+	w_raw = 0;
+	power = 0;
 }
 
 int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID ExtraInfo)
 {
 	int sub_frames = FrameSize / D;
 
+	// La rappresentazione del Nu-Tech tramite interi a 16 bit rischia di far divergere i valori dell'algoritmo
+	double scale_factor = 32768.0;
+	double inv_scale = 1.0 / scale_factor;
+
+	double lambda = 0.99;
+	global_max_power = 1e-12;
+
+	// Inizializzazione pesi al primo avvio
 	if (w_i[0] == 0.0) {
 		for (int i = 0; i < I; i++) w_i[i] = 1.0;
 	}
@@ -71,29 +82,33 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 	for (int l = 0; l < L; l++) {
 		in_x[l] = (double*)Input[l]->DataBuffer;
 		out_x[l] = (double*)Output[l]->DataBuffer;
+		//ippsMulC_64f_I(inv_scale, in_x[l], FrameSize); // Scalatura a [-1.0, 1.0]
 	}
 	for (int m = 0; m < M; m++) {
 		in_y[m] = (double*)Input[L + m]->DataBuffer;
+		//ippsMulC_64f_I(inv_scale, in_y[m], FrameSize); // Scalatura a [-1.0, 1.0]
 	}
 
-	// 1. Preparazione Buffer Overlap X e Y
+	// 1: Preparazione buffer overlap X e Y
 	for (int l = 0; l < L; l++) {
 		int offset_l = l * (filter_len - 1);
 		int tmp_offset = l * (FrameSize + filter_len - 1);
 		ippsCopy_64f(&overlap_x[offset_l], &tmp_x_full[tmp_offset], filter_len - 1);
-		ippsCopy_64f(in_x[l], &tmp_x_full[tmp_offset + filter_len - 1], FrameSize);
-		ippsCopy_64f(&in_x[l][FrameSize - (filter_len - 1)], &overlap_x[offset_l], filter_len - 1);
+		// ippsCopy_64f(in_x[l], &tmp_x_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsMulC_64f(in_x[l], inv_scale, &tmp_x_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsCopy_64f(&tmp_x_full[tmp_offset + FrameSize], &overlap_x[offset_l], filter_len - 1);
 	}
 
 	for (int m = 0; m < M; m++) {
 		int offset_m = m * (filter_len - 1);
 		int tmp_offset = m * (FrameSize + filter_len - 1);
 		ippsCopy_64f(&overlap_y[offset_m], &tmp_y_full[tmp_offset], filter_len - 1);
-		ippsCopy_64f(in_y[m], &tmp_y_full[tmp_offset + filter_len - 1], FrameSize);
-		ippsCopy_64f(&in_y[m][FrameSize - (filter_len - 1)], &overlap_y[offset_m], filter_len - 1);
+		// ippsCopy_64f(in_y[m], &tmp_y_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsMulC_64f(in_y[m], inv_scale, &tmp_y_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsCopy_64f(&tmp_y_full[tmp_offset + FrameSize], &overlap_y[offset_m], filter_len - 1);
 	}
 
-	// 2. Analisi di X e Decorrelazione
+	// 2: Analisi di X e decorrelazione (per i segnali da inviare in stanza)
 	int temp_global_k = global_k;
 	for (int k_local = 0; k_local < sub_frames; k_local++) {
 		int n_full = k_local * D;
@@ -113,7 +128,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				s_base[(l * I + i) * sub_frames + k_local] = s_base_val;
 
 				double f_l_val = 2.0 * l;
-				double phi = alpha_rad[i] * sin(2.0 * M_PI * f_l_val * (double)temp_global_k * D / SampleRate);
+				double phi = alpha_rad[i] * sin(2.0 * IPP_PI * f_l_val * (double)temp_global_k * D / SampleRate);
 				Ipp64fc phase_mod = { cos(phi), sin(phi) };
 				ippsMulC_64fc(&s_base_val, phase_mod, &s_decorr[(l * I + i) * sub_frames + k_local], 1);
 			}
@@ -121,7 +136,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		temp_global_k++;
 	}
 
-	// 3. Sintesi degli Speaker
+	// 3: Sintesi degli speaker (generazione out_x)
 	int temp_global_n = global_n;
 	for (int n = 0; n < FrameSize; n++) {
 		int n_mod = temp_global_n % I;
@@ -131,27 +146,22 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		for (int l = 0; l < L; l++) {
 			double out_val = 0.0;
 			for (int i = 0; i < I; i++) {
-
 				int channel_idx = l * I + i;
 				int base_idx = channel_idx * (filter_len * 2);
 				int head = syn_head[channel_idx];
 
-				// Upsampling: aggiorna il buffer solo sui sample interpolati, altrimenti usa zero
 				Ipp64fc w_val = { 0.0, 0.0 };
 				if (is_new_subframe) {
 					w_val = s_decorr[channel_idx * sub_frames + k_local];
 				}
 
-				// Rotazione del buffer in avanti
 				head--;
 				if (head < 0) head = filter_len - 1;
 				syn_head[channel_idx] = head;
 
-				// Scrittura doppia (Double Buffer Trick)
 				state_syn[base_idx + head] = w_val;
 				state_syn[base_idx + head + filter_len] = w_val;
 
-				// Calcolo convoluzione
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				Ipp64fc* state_ptr = &state_syn[base_idx + head];
 				ippsDotProd_64f64fc(taps, state_ptr, filter_len, &filter_out);
@@ -159,39 +169,43 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				Ipp64fc rotor_syn = dft_rot_syn[i * I + n_mod];
 				out_val += (filter_out.re * rotor_syn.re - filter_out.im * rotor_syn.im);
 			}
-			out_x[l][n] = out_val * D;
+			out_x[l][n] = out_val * D * scale_factor;
+			// out_x[l][n] = out_val;
 		}
 		temp_global_n++;
 	}
 
-	// 4. Aggiornamento del Filtro Adattativo
+	// 4: Aggiornamento buffer di out_x per il tracciamento
 	for (int l = 0; l < L; l++) {
 		int offset_l = l * (filter_len - 1);
 		int tmp_offset = l * (FrameSize + filter_len - 1);
 		ippsCopy_64f(&overlap_out_x[offset_l], &tmp_out_x_full[tmp_offset], filter_len - 1);
-		ippsCopy_64f(out_x[l], &tmp_out_x_full[tmp_offset + filter_len - 1], FrameSize);
-		ippsCopy_64f(&out_x[l][FrameSize - (filter_len - 1)], &overlap_out_x[offset_l], filter_len - 1);
+		// ippsCopy_64f(out_x[l], &tmp_out_x_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsMulC_64f(out_x[l], inv_scale, &tmp_out_x_full[tmp_offset + filter_len - 1], FrameSize);
+		ippsCopy_64f(&tmp_out_x_full[tmp_offset + FrameSize], &overlap_out_x[offset_l], filter_len - 1);
 	}
 
+	// 5: Analisi RIR Tracking, pesi, e update
 	for (int k_local = 0; k_local < sub_frames; k_local++) {
 		int n_full = k_local * D;
 		int k_mod = global_k % I;
-
+		
+		// 5.1: Analisi mic, analisi spk, e tracking potenze
 		for (int i = 0; i < I; i++) {
 			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod];
 
-			// Analisi microfono
+			// Analisi microfono (y_sub)
 			for (int m = 0; m < M; m++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				int read_idx = m * (FrameSize + filter_len - 1) + n_full;
 
 				ippsDotProd_64f(&tmp_y_full[read_idx], &h_ana_re_rev[i * filter_len], filter_len, &filter_out.re);
 				ippsDotProd_64f(&tmp_y_full[read_idx], &h_ana_im_rev[i * filter_len], filter_len, &filter_out.im);
-
 				ippsMulC_64fc(&filter_out, rotor_ana, &y_sub[(m * I + i) * sub_frames + k_local], 1);
 			}
 
-			// Analisi speaker
+			// Analisi speaker (s_true_val) e calcolo potenza
+			double inst_power = 0.0;
 			for (int l = 0; l < L; l++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				int read_idx = l * (FrameSize + filter_len - 1) + n_full;
@@ -202,10 +216,45 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				Ipp64fc s_true_val;
 				ippsMulC_64fc(&filter_out, rotor_ana, &s_true_val, 1);
 
+				// Memorizza s_true_val nello stato
 				int ch_idx = i * L + l;
 				s_state[ch_idx * Ki + s_head_idx[ch_idx]] = s_true_val;
 				s_head_idx[ch_idx] = (s_head_idx[ch_idx] + 1) % Ki;
 
+				// Energia istantanea
+				inst_power += (s_true_val.re * s_true_val.re + s_true_val.im * s_true_val.im);
+			}
+			inst_power /= L; // Media sui canali
+
+			// Aggiornamento ricorsivo della potenza
+			power[i] = lambda * power[i] + (1.0 - lambda) * inst_power;
+
+			// Tracciamento del massimo
+			if (power[i] > global_max_power) {
+				global_max_power = power[i];
+			}
+		}
+
+		// 5.2: Calcolo e normalizzazione dei pesi w_i
+		double epsilon_w = 0.01 * global_max_power + 1e-12;
+		double sum_w = 0.0;
+
+		for (int i = 0; i < I; i++) {
+			w_raw[i] = 1.0 / (power[i] + epsilon_w);
+			sum_w += w_raw[i];
+		}
+
+		double mean_w = sum_w / I;
+		for (int i = 0; i < I; i++) {
+			w_i[i] = w_raw[i] / mean_w; // La loro somma darà I
+		}
+
+		// 5.3: Decorrelazione IMSAF e update dei filtri
+		for (int i = 0; i < I; i++) {
+
+			// Estrazione del vettore s_ij
+			for (int l = 0; l < L; l++) {
+				int ch_idx = i * L + l;
 				for (int delay = 0; delay < Ki; delay++) {
 					int read_idx_delay = (s_head_idx[ch_idx] - 1 - delay + Ki) % Ki;
 					s_ij[l * Ki + delay] = s_state[ch_idx * Ki + read_idx_delay];
@@ -216,7 +265,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 			ippsNorm_L2_64fc64f(s_ij, L * Ki, &norm_s_val);
 			double norm_s = norm_s_val * norm_s_val;
 
-			if (norm_s < 1e-12) {
+			if (norm_s < 1e-8) {
 				if (P > 0) {
 					ippsMove_64fc(&S_memory[i * P * L * Ki], &S_memory[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
 					ippsCopy_64fc(s_ij, &S_memory[i * P * L * Ki], L * Ki);
@@ -227,13 +276,11 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				continue;
 			}
 
-			// 5. Decorrelazione IMSAF
-			ippsCopy_64fc(s_ij, u_ij, L* Ki);
+			// Inizio IMSAF
+			ippsCopy_64fc(s_ij, u_ij, L * Ki);
 
 			if (P > 0) {
-				// Il coniugato di s_ij viene calcolato solo una volta per iterazione
 				ippsConj_64fc(s_ij, s_ij_conj, L * Ki);
-
 				double trace_R = 0.0;
 
 				for (int p1 = 0; p1 < P; p1++) {
@@ -250,15 +297,15 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					trace_R += R_mat[p1 * P + p1].re;
 				}
 
+				// Regolarizzazione scalata dinamicamente
 				double reg = 0.1 * trace_R / P + 1e-6;
 				for (int p1 = 0; p1 < P; p1++) R_mat[p1 * P + p1].re += reg;
 
-				// Inversione manuale delle matrici
 				bool solver_ok = false;
 
 				if (P == 1) {
 					double det = R_mat[0].re;
-					if (det > 1e-30) { // Guardia contro matrici singolari
+					if (det > 1e-30) {
 						double invDet = 1.0 / det;
 						a_i[0] = { P_vec[0].re * invDet, P_vec[0].im * invDet };
 						solver_ok = true;
@@ -269,7 +316,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					Ipp64fc R01 = R_mat[1], R10 = R_mat[2];
 
 					double det = R00 * R11 - (R01.re * R01.re + R01.im * R01.im);
-					if (det > 1e-30) { // Guardia contro matrici singolari
+					if (det > 1e-30) {
 						double invDet = 1.0 / det;
 						Ipp64fc p0 = P_vec[0], p1 = P_vec[1];
 						a_i[0].re = (R11 * p0.re - (R01.re * p1.re - R01.im * p1.im)) * invDet;
@@ -293,7 +340,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 
 					double det = R00 * C00 + (R01.re * C01.re - R01.im * C01.im) + (R02.re * C02.re - R02.im * C02.im);
 
-					if (det > 1e-30) { // Guardia contro matrici singolari
+					if (det > 1e-30) {
 						double invDet = 1.0 / det;
 						Ipp64fc C10 = { (R02.re * R21.re - R02.im * R21.im) - R01.re * R22,
 										(R02.re * R21.im + R02.im * R21.re) - R01.im * R22 };
@@ -322,7 +369,6 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					}
 				}
 
-				// Lo sbiancamento viene applicato solo se l'inversione è andata a buon fine
 				if (solver_ok) {
 					for (int p = 0; p < P; p++) {
 						Ipp64fc neg_a = { -a_i[p].re, -a_i[p].im };
@@ -331,7 +377,6 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					}
 				}
 
-				// Shift e aggiornamento di entrambe le memorie (Normale e Coniugata) avvengono avvengono a prescindere
 				ippsMove_64fc(&S_memory[i * P * L * Ki], &S_memory[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
 				ippsCopy_64fc(s_ij, &S_memory[i * P * L * Ki], L * Ki);
 
@@ -339,34 +384,28 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				ippsCopy_64fc(s_ij_conj, &S_memory_conj[i * P * L * Ki], L * Ki);
 			}
 
-			// 6. Aggiornamento Pesi
+			// Calcolo dell'update
 			double norm_u_val;
 			ippsNorm_L2_64fc64f(u_ij, L * Ki, &norm_u_val);
 			double norm_u = norm_u_val * norm_u_val;
 
 			Ipp64fc* H_sub_i = &H_sub[i * M * L * Ki];
-
-			// Coniugato di u_ij, necessario per la formula di update
 			ippsConj_64fc(u_ij, u_ij_conj, L * Ki);
 
 			for (int m = 0; m < M; m++) {
 				Ipp64fc y_hat = { 0.0, 0.0 };
 				Ipp64fc* H_row = &H_sub_i[m * L * Ki];
 
-				// Calcolo errore
 				ippsDotProd_64fc(H_row, s_ij, L * Ki, &y_hat);
 
 				Ipp64fc y_actual = y_sub[(m * I + i) * sub_frames + k_local];
 				Ipp64fc e;
 				ippsSub_64fc(&y_hat, &y_actual, &e, 1);
 
+				// Step_size con utilizzo del peso w_i
 				double step_size = mu_h * w_i[i] / (norm_u + delta_h);
-				if (step_size > 1.5) {
-					step_size = 1.5;
-				}
-				Ipp64fc update_factor = { e.re * step_size, e.im * step_size };
 
-				// H = H + u_ij* * update_factor
+				Ipp64fc update_factor = { e.re * step_size, e.im * step_size };
 				ippsAddProductC_64fc(u_ij_conj, update_factor, H_row, L * Ki);
 			}
 		}
@@ -429,67 +468,26 @@ void __stdcall PlugIn::LEPlugin_Init()
 	init_vector(u_ij_conj, L * Ki);
 	init_vector(s_ij_conj, L * Ki);
 	init_vector(S_memory_conj, I * P * L * Ki);
+	init_vector(w_raw, I);
+	init_vector(power, I);
 
 	// Caricamento dei tappi del filtro prototipo
 	read_dat(save_name, taps, filter_len);
 
 	// Costruzione degli angoli per la modulazione di fase
-	
-	if (I == 8) {
-		for (int i = 0; i < I; i++) {
-			double alpha_deg = 0.0;
-			if (i <= 3) alpha_deg = 20.0;
-			else if (i == 4) alpha_deg = 40.0;
-			else if (i == 5) alpha_deg = 70.0;
-			else if (i == 6) alpha_deg = 90.0;
-			else alpha_deg = 180.0;
-			alpha_rad[i] = alpha_deg * (M_PI / 180.0);
-		}
-	}
-	else {
-		// Distribuzione lineare degli sfasamenti nelle sottobande al variare di I
-		// Le righe sopra sono pensate per I=8 e, passando da I=8 a I=16, si hanno problemi nell'algoritmo
-		
-		for (int i = 0; i < I; i++) {
-			double alpha_deg = 20.0 + (160.0 * i) / (I - 1);
-			alpha_rad[i] = alpha_deg * (M_PI / 180.0);
-		}
-	}
-
-
-	// Calcolo dei filtri complessi modulati
-	/*
 	for (int i = 0; i < I; i++) {
-		for (int m = 0; m < filter_len; m++) {
-			double angle = (2.0 * M_PI * i * m) / I;
-
-			double real_part = taps[m] * cos(angle);
-			double imag_part = taps[m] * sin(angle);
-
-			h_ana_complex[i * filter_len + m] =  Ipp64fc {real_part, imag_part};
-		}
-
-		// Calcolo dei coefficienti di fase per il filtro di analisi
-		for (int k_mod = 0; k_mod < I; k_mod++) {
-			double angle = -(2.0 * M_PI * i * (k_mod * D) / I);
-			double real_part = cos(angle);
-			double imag_part = sin(angle);
-			dft_rot_ana[i * I + k_mod] = Ipp64fc{ real_part, imag_part };
-		}
-
-		// Calcolo dei coefficienti di fase per il filtro di sintesi
-		for (int n_mod = 0; n_mod < I; n_mod++) {
-			double angle = (2.0 * M_PI * i * n_mod) / I;
-			double real_part = cos(angle);
-			double imag_part = sin(angle);
-			dft_rot_syn[i * I + n_mod] = Ipp64fc{ real_part, imag_part };
-		}
+		double alpha_deg = 0.0;
+		if (i <= 3) alpha_deg = 20.0;
+		else if (i == 4) alpha_deg = 40.0;
+		else if (i == 5) alpha_deg = 70.0;
+		else if (i == 6) alpha_deg = 90.0;
+		else alpha_deg = 180.0;
+		alpha_rad[i] = alpha_deg * (IPP_PI / 180.0);
 	}
-	*/
 
 	for (int i = 0; i < I; i++) {
 		for (int m = 0; m < filter_len; m++) {
-			double angle = (2.0 * M_PI * i * m) / I;
+			double angle = (2.0 * IPP_PI * i * m) / I;
 			double real_part = taps[m] * cos(angle);
 			double imag_part = taps[m] * sin(angle);
 
@@ -502,12 +500,12 @@ void __stdcall PlugIn::LEPlugin_Init()
 		}
 
 		for (int k_mod = 0; k_mod < I; k_mod++) {
-			double angle = -(2.0 * M_PI * i * (k_mod * D) / I);
+			double angle = -(2.0 * IPP_PI * i * (k_mod * D) / I);
 			dft_rot_ana[i * I + k_mod] = Ipp64fc{ cos(angle), sin(angle) };
 		}
 
 		for (int n_mod = 0; n_mod < I; n_mod++) {
-			double angle = (2.0 * M_PI * i * n_mod) / I;
+			double angle = (2.0 * IPP_PI * i * n_mod) / I;
 			dft_rot_syn[i * I + n_mod] = Ipp64fc{ cos(angle), sin(angle) };
 		}
 	}
@@ -565,6 +563,9 @@ void __stdcall PlugIn::LEPlugin_Delete()
 	destroy_vector(u_ij_conj);
 	destroy_vector(s_ij_conj);
 	destroy_vector(S_memory_conj);
+	destroy_vector(w_raw);
+	destroy_vector(power);
+	destroy_vector(s_state);
 }
 
 PlugIn::~PlugIn(void)
@@ -884,8 +885,8 @@ void __stdcall PlugIn::LERTWatchInit()
 	delta_hWatch.EnableWrite = true;
 	delta_hWatch.LenByte = sizeof(double);
 	delta_hWatch.TypeVar = WTC_DOUBLE;
-	delta_hWatch.IDVar = IDX_MU_H;
-	sprintf(delta_hWatch.VarName, "Step size mu_h");
+	delta_hWatch.IDVar = IDX_DELTA_H;
+	sprintf(delta_hWatch.VarName, "Regularization delta_h");
 	CBFunction(this, NUTS_ADDRTWATCH, 0, (LPVOID)&delta_hWatch);
 
 	// Watch per il salvataggio manuale della rir
@@ -998,7 +999,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 				filter_out.re += sample * h_val.re;
 				filter_out.im += sample * h_val.im;
 			}
-			double angle = -(2.0 * M_PI * i * n_full) / I;
+			double angle = -(2.0 * IPP_PI * i * n_full) / I;
 			Ipp64fc rotor = { cos(angle), sin(angle) };
 			ippsMulC_64fc(&filter_out, rotor, &s_sub[i * sub_frames_test + k], 1);
 		}
@@ -1048,7 +1049,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 						filter_out.im += state_val.im * taps[v];
 					}
 
-					double angle = (2.0 * M_PI * i * n) / I;
+					double angle = (2.0 * IPP_PI * i * n) / I;
 					Ipp64fc rotor = { cos(angle), sin(angle) };
 					out_val += (filter_out.re * rotor.re - filter_out.im * rotor.im);
 
