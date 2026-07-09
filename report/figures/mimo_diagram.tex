@@ -1,0 +1,100 @@
+% Schema a blocchi del sistema MIMO implementato.
+% Richiede nel preambolo: \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+% Da includere con: \input{figures/mimo_diagram}
+\begin{tikzpicture}[
+    font=\footnotesize,
+    >={Stealth[length=2.2mm]},
+    blk/.style={draw, thick, rounded corners=2pt, fill=white, align=center,
+                minimum height=10mm, inner sep=2.2mm},
+    room/.style={blk, fill=orange!12, draw=orange!60!black},
+    sum/.style={draw, thick, circle, fill=white, inner sep=0pt, minimum size=4.2mm},
+    sig/.style={->, thick},
+    note/.style={font=\scriptsize, text=black!60, align=center},
+    grouplab/.style={font=\scriptsize\bfseries, text=black!70},
+    busN/.style={font=\scriptsize, inner sep=1pt},
+  ]
+
+  % ============ Decorrelazione (catena orizzontale in alto) ============
+  \node[blk] (ana1) at (1.0,0) {Banco di analisi\\DFT ($I$, $\downarrow D$)};
+  \node[blk] (pmod) at (5.35,0) {Modulazione\\di fase\\[-1pt] {\scriptsize\color{black!60} $e^{\mathrm{j}\alpha_i \sin(2\pi f_l k D / f_s)}$}};
+  \node[blk] (syn1) at (9.6,0) {Banco di sintesi\\DFT ($I$, $\uparrow D$)};
+
+  \draw[sig] (-2.0,0) -- node[above, pos=0.25]{$\mathbf{x}(n)$} (ana1);
+  \draw[thick] ($(-2.0,0)!0.3!(ana1.west)+(-2pt,-4pt)$) -- +(4pt,8pt)
+        node[busN, below=3mm]{$L$};
+  \draw[sig] (ana1) -- node[above]{$\mathbf{x}_i(k)$} (pmod);
+  \draw[sig] (pmod) -- node[above]{$\mathbf{s}_i(k)$} (syn1);
+
+  % ============ Verso stanza e ri-analisi ============
+  \coordinate (tap) at (12.4,-2.4);
+  \node[room] (roomH) at (12.4,-4.4) {Stanza \\$\mathbf{H}(n)$};
+  \node[blk] (ana2) at (2.6,-4.4) {Banco di analisi\\DFT ($I$, $\downarrow D$)};
+  \node[blk] (ana3) at (6.6,-4.4) {Banco di analisi\\DFT ($I$, $\downarrow D$)};
+
+  \draw[sig] (syn1.east) -- (12.4,0) -- (roomH.north);
+  \node[right] at (12.5,-1.0) {$\mathbf{s}(n)$};
+  \draw[thick] ($(12.4,-1.55)+(-4pt,-2pt)$) -- +(8pt,4pt)
+        node[busN, right=2.5mm]{$L$};
+  \fill (tap) circle (1.3pt);
+  \draw[sig] (tap) -- (2.6,-2.4) -- (ana2.north);
+  \draw[sig] (roomH.west) -- node[above]{$\mathbf{y}(n)$} (ana3.east);
+  \draw[thick] ($(roomH.west)!0.5!(ana3.east)+(-2pt,-4pt)$) -- +(4pt,8pt)
+        node[busN, below=3mm]{$M$};
+
+  % ============ Nucleo IMSAF ============
+  \coordinate (sdot) at (2.6,-5.9);
+  \node[blk] (pred) at (1.0,-7.1) {Predizione\\lineare\\[-1pt]{\scriptsize\color{black!60} $\underline{\mathbf{u}}_i = \underline{\mathbf{s}}_i - \mathbf{S}_i \mathbf{a}_i$}\\[-2pt] {\scriptsize\color{black!60} ordine $P$}};
+  \node[blk] (wei)  at (4.6,-7.1) {Pesi di sottobanda\\[-1pt] {\scriptsize\color{black!60} $w_i \propto 1/\sigma_i$}};
+  \node[sum] (esum) at (6.6,-9.2) {};
+
+  \draw[sig] (ana2) -- node[right, pos=0.35]{$\mathbf{s}_{i}(k)$} (sdot) -- (2.6,-8.6);
+  \fill (sdot) circle (1.3pt);
+  \draw[sig] (sdot) -| (pred.north);
+  \draw[sig] (sdot) -| (wei.north);
+  \draw[sig] (pred.south) -- node[left, pos=0.5]{$\underline{\mathbf{u}}_i(k)$} (1.0,-8.6);
+  \draw[sig] (wei.south) -- node[right, pos=0.5]{$w_i$} (4.6,-8.6);
+
+  \draw[sig] (ana3) -- node[right, pos=0.55]{$\mathbf{y}_{i}(k)$} (esum);
+  \node[busN] at ($(esum.north east)+(0.26,0.1)$) {$+$};
+  \node[busN] at ($(esum.west)+(-0.3,-0.26)$) {$-$};
+
+  % Retroazione dell'errore: dal ramo orizzontale sale in verticale e
+  % attraversa in obliquo il blocco dei filtri (disegnato dopo, quindi
+  % in primo piano): la freccia entra dal basso e riesce dall'alto.
+  \draw[sig] (esum.south) -- node[right, pos=0.4]{$\mathbf{e}_{i}(k)$} (6.6,-10.3)
+        -- (0.7,-10.3) -- (0.7,-10) -- (2.3,-8.25);
+
+  \node[blk, minimum width=53mm] (hhat) at (2.6,-9.2) {Filtri adattativi\\di sottobanda $\hat{\mathbf{H}}_i(k)$};
+  \draw[sig] (hhat.east) -- node[above]{$\hat{\mathbf{y}}_{i}(k)$} (esum);
+
+  % ============ Ricostruzione e confronto (riga in basso) ============
+  \node[blk] (rec) at (2.6,-13.3) {Ricostruzione fullband\\[-1pt] {\scriptsize\color{black!60} impulso $\to$ analisi $\to \hat{\mathbf{H}}_i \to$ sintesi}};
+  \node[blk] (nm)  at (9,-13.3) {Calcolo NM\\[-1pt] {\scriptsize\color{black!60} confronto con $\mathbf{H}(n)$}};
+  \draw[sig] (hhat.south) -- node[right, pos=0.68]{$\hat{\mathbf{H}}(k)$}
+        (rec.north);
+  \draw[thick] ($(hhat.south)!0.88!(rec.north)+(-4pt,-1.5pt)$) -- +(8pt,5pt)
+        node[busN, right=2.5mm]{$M \times LK_{i} \times I$};
+  \draw[sig] (rec.east) -- node[above]{$\hat{\mathbf{H}}(n)$} (nm.west);
+  \draw[thick] ($(rec.east)!0.5!(nm.west)+(-2pt,-4pt)$) -- +(4pt,8pt)
+        node[busN, below=3mm]{$M \times LK$};
+
+  % ============ Gruppi con etichette in basso a destra ============
+  \coordinate (fitExcS) at (11.1,-1.35);
+  \coordinate (fitTrkS) at (8.2,-10.85);
+  \coordinate (fitTrkN) at (0,0 |- ana2.north);
+  \coordinate (fitTrkN) at ([yshift=4mm]ana2.north);
+  
+  \begin{scope}[on background layer]
+    \node[fill=gray!12, rounded corners=4pt, fit=(ana1)(pmod)(syn1)(fitExcS),
+          inner sep=4mm] (gExc) {};
+    \node[grouplab, anchor=south east, align=right] at ($(gExc.south east)+(-0.18,0.1)$)
+          {Decorrelazione dei segnali di eccitazione\\ [-1pt]{\tiny per ogni sottobanda ($i = 1,\dots,I$)}};
+    \coordinate (fitTrkW) at ([xshift=4mm]gExc.west |- ana2.center);
+    \node[fill=cyan!8, rounded corners=4pt,
+    fit=(ana2)(ana3)(hhat)(esum)(pred)(wei)(fitTrkS)(fitTrkW)(fitTrkN),
+    inner sep=4mm] (gTrk) {};
+    \node[grouplab, anchor=south east, align=right] at ($(gTrk.south east)+(-0.18,0.1)$)
+          {Tracciamento IMSAF\\ [-1pt]{\tiny per ogni sottobanda ($i = 1,\dots,I$)}};
+  \end{scope}
+
+\end{tikzpicture}

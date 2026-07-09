@@ -1,19 +1,19 @@
 clear;
 close all;
 
-L = 2; % numero di altoparlanti (numero di canali)
+L = 2; % numero di altoparlanti (numero di canali): se M=2 massimo L=5
 M = 2; % numero di microfoni
 M_plotted = 1;
 L_plotted = 1;
-I = 16; % numero di sottobande
-D = 4; % fattore di decimazione
+I = 8; % numero di sottobande
+D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
 mu_h = 0.32;
 delta_h = 1e-2;  
 delta_ap = 1e-1;
-K = 128; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
+K = 2^7; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
 offset = 100; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
-fs = 44100; % Frequenza di campionamento (necessaria per la modulazione di fase)
+fs = 16000; % Frequenza di campionamento (necessaria per la modulazione di fase)
 N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 
 % Flag di test:
@@ -21,14 +21,14 @@ N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 % canali. Utile per mostrare che la struttura dell'algoritmo di tracking è
 % corretta
 % - 'false': viene usato un segnale reale, inviato sui vari canali.
-x_test = true;
+x_test = false;
 colored_noise = false;
 
 % Flag per scegliere il segnale di ingresso quando x_test è false
-x_type = 2;
+ x_type = 2;
 % 1: segnale mono replicato su tutti i canali, caricato dalla libreria di
 % MATLAB
-% 2: segnale stereo inviato a canali separati, preso da EBU SQUAM
+% 2: segnale L-canali inviato a canali separati, preso da EBU SQUAM
 
 normalized_mis_flag = true; % Se impostato a true calcola il NM
 norm_iteration_factor = 100;
@@ -74,7 +74,7 @@ s_subband_base = zeros(K_len, I, L);
 
 if (x_type == 1)
     % load handel.mat; x_audio = y; fs_audio = Fs;
-    [x_audio, fs_audio] = audioread("SampleAudio/69.flac");
+    [x_audio, fs_audio] = audioread("SampleAudio/50.flac");
     if fs_audio ~= fs
         x_audio = resample(mean(x_audio,2), fs, fs_audio);
     end
@@ -90,46 +90,39 @@ if (x_type == 1)
     x_mono_subband = analysis_fb(x_mono, prototype_dft_filter, I, D);
     s_subband_base = repmat(x_mono_subband, 1, 1, L);
 elseif (x_type == 2)
-    [x_audio, fs_audio] = audioread("SampleAudio/69.flac");
-    
+    [x_audio, fs_audio] = audioread("SampleAudio/hornWag.flac");
+
     if fs_audio ~= fs
         x_audio = resample(x_audio, fs, fs_audio);
     end
-    
+
+    % hornWag: layout 5.1(side). Ordine dei canali nel file:
+    %   col 1 -> FL  (Front Left)
+    %   col 2 -> FR  (Front Right)
+    %   col 3 -> FC  (Front Center)
+    %   col 4 -> LFE (Low Frequency Effects, subwoofer) -> SCARTATO
+    %   col 5 -> SL  (Side Left)
+    %   col 6 -> SR  (Side Right)
+    % Si scartano le basse dell'LFE e si tengono i 5 canali a banda piena.
+    ch_map = [1 2 3 5 6];               % FL FR FC SL SR
+    x_audio = x_audio(:, ch_map(1:L)); % seleziono i primi L canali utili
+
     if length(x_audio) >= N
-        x_stereo = x_audio(1:N, :);
+        x_multi = x_audio(1:N, :);
     else
-        x_stereo = repmat(x_audio, ceil(N/length(x_audio)), 1);
-        x_stereo = x_stereo(1:N, :);
+        x_multi = repmat(x_audio, ceil(N/length(x_audio)), 1);
+        x_multi = x_multi(1:N, :);
     end
-    
-    % Normalizzazione della potenza
-    x_stereo(:, 1) = x_stereo(:, 1) / std(x_stereo(:, 1));
-    x_stereo(:, 2) = x_stereo(:, 2) / std(x_stereo(:, 2));
-    
-    % Segnali stereo
+
     for l = 1:L
-        s_subband_base(:,:,l) = analysis_fb(x_stereo(:, l), prototype_dft_filter, I, D);
+        x_multi(:, l) = x_multi(:, l) / std(x_multi(:, l)); % normalizzazione potenza
+        s_subband_base(:,:,l) = analysis_fb(x_multi(:, l), prototype_dft_filter, I, D);
     end
 end
 
-% Rumore marrone: sono riportate le prestazioni in termini di NM
-% Canali scorrelati
-%   -55dB dopo 383 iterazioni @ P=0;
-%   -55dB dopo  82 iterazioni @ P=2.
-% Canali correlati
-%    -8dB dopo 470 iterazioni @ P=0;
-%    -8dB dopo 326 iterazioni @ P=2.
-% In entrambi i casi i floor sono paragonabili tra di loro e rispetto a
-% x_mono = rumore bianco. Le convergenze sono rispettivamente 4.67 e 1.44
-% volte più veloci passando da P=0 a P=2, provando, come affermato 
-% nell'articolo che lo sbiancamento migliora la velocità di convergenza e 
-% non il floor del NM.
-% x_mono = filter(1,[1 -0.9],x_mono);
-
 % Modulazione di fase per decorrelare
 s_subband_decorr = phase_modulation_decorrelation(s_subband_base, D, fs);
-% Sintesi dei segnati decorrelati in fullband
+% Sintesi dei segnali decorrelati in fullband
 if (x_test)
     x_speakers = randn(N_recon, L);
     if(colored_noise)
@@ -205,7 +198,7 @@ u_ij = zeros(Ki,1);
 % scale_factor = 1 / max_val; % Fattore di scala causato dal banco filtri
 delay_calib = V-1;
 scale_factor = D;
-
+tic;
 for k=1:K_len
     for i=1:I
         s_ij = complex(zeros(L*Ki, 1));
@@ -298,6 +291,7 @@ for k=1:K_len
         norm_mis(k/norm_iteration_factor) = 20*log10(norm(H(:)-H_recon_full(:), 'fro')/norm(H(:), 'fro'));
     end
 end
+t_exec=toc;
 
 % Ricostruzione della H fullband
 H_recon_full = complex(zeros(K, M, L));
@@ -314,7 +308,8 @@ end
 % Plot del NM
 if (normalized_mis_flag)
     figure;
-    plot((1:length(norm_mis))*(norm_iteration_factor*D/fs), norm_mis);
+    t=(1:length(norm_mis))*(norm_iteration_factor*D/fs);
+    plot(t, norm_mis);
     % Serve il fattore D, perché ogni iterazione del loop in sottobanda 
     % corrisponde a D campioni fullband (per la decimazione).
     % Se entra un segnale fullband di N=30*fs campioni, quindi che dura 30
@@ -480,13 +475,13 @@ function z_subband = phase_modulation_decorrelation(s_subband, D, fs)
     % Costruzione degli angoli alpha come mostrati in Tabella I
     alpha_deg = zeros(I, 1);
     for i = 1:I
-        if i <= 4          % u = 0-3
+        if i <= 3          % u = 1-3
             alpha_deg(i) = 20;
-        elseif i == 5      % u = 4
+        elseif i == 4      % u = 4
             alpha_deg(i) = 40;
-        elseif i == 6      % u = 5
+        elseif i == 5      % u = 5
             alpha_deg(i) = 70;
-        elseif i == 7      % u = 6
+        elseif i == 6      % u = 6
             alpha_deg(i) = 90;
         else               % u >= 7
             alpha_deg(i) = 180;
