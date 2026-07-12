@@ -82,14 +82,14 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 	for (int l = 0; l < L; l++) {
 		in_x[l] = (double*)Input[l]->DataBuffer;
 		out_x[l] = (double*)Output[l]->DataBuffer;
-		//ippsMulC_64f_I(inv_scale, in_x[l], FrameSize); // Scalatura a [-1.0, 1.0]
+		//ippsMulC_64f_I(inv_scale, in_x[l], FrameSize);
 	}
 	for (int m = 0; m < M; m++) {
 		in_y[m] = (double*)Input[L + m]->DataBuffer;
-		//ippsMulC_64f_I(inv_scale, in_y[m], FrameSize); // Scalatura a [-1.0, 1.0]
+		//ippsMulC_64f_I(inv_scale, in_y[m], FrameSize);
 	}
 
-	// 1: Preparazione buffer overlap X e Y
+	// 1: Preparazione buffer overlap X e Y, che contengono i valori di ingresso scalati e i V-1 campioni del frame precedenti necessari al filtraggio
 	for (int l = 0; l < L; l++) {
 		int offset_l = l * (filter_len - 1);
 		int tmp_offset = l * (FrameSize + filter_len - 1);
@@ -115,11 +115,12 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		int k_mod = temp_global_k % I;
 
 		for (int i = 0; i < I; i++) {
-			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod];
+			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod]; // Coefficiente di analisi per la sottobanda i-esima relativo al campione k_mod
 			for (int l = 0; l < L; l++) {
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				int read_idx = l * (FrameSize + filter_len - 1) + n_full;
-
+				// Tramite queste funzioni si calcolano le convoluzioni tra il segnale di ingresso e il filtro di analisi (diviso in parte reale e immaginaria)
+				// I filtri sono già salvati in ordine inverso per usare l'istruzione DotProd e calcolare solo i campioni nel dominio decimato
 				ippsDotProd_64f(&tmp_x_full[read_idx], &h_ana_re_rev[i * filter_len], filter_len, &filter_out.re);
 				ippsDotProd_64f(&tmp_x_full[read_idx], &h_ana_im_rev[i * filter_len], filter_len, &filter_out.im);
 
@@ -127,6 +128,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				ippsMulC_64fc(&filter_out, rotor_ana, &s_base_val, 1);
 				s_base[(l * I + i) * sub_frames + k_local] = s_base_val;
 
+				// Modulazione di fase, salva in s_decorr il segnale decorrelato da inviare agli speaker
 				double f_l_val = 2.0 * l;
 				double phi = alpha_rad[i] * sin(2.0 * IPP_PI * f_l_val * (double)temp_global_k * D / SampleRate);
 				Ipp64fc phase_mod = { cos(phi), sin(phi) };
@@ -150,15 +152,19 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				int base_idx = channel_idx * (filter_len * 2);
 				int head = syn_head[channel_idx];
 
+				// Per gestire la sintesi, è necessario inserire un nuovo campione e, al tempo stesso, leggere V campioni passati
+
 				Ipp64fc w_val = { 0.0, 0.0 };
 				if (is_new_subframe) {
 					w_val = s_decorr[channel_idx * sub_frames + k_local];
 				}
 
+				// I nuovi campioni vengono inseriti negli indici più bassi
 				head--;
 				if (head < 0) head = filter_len - 1;
 				syn_head[channel_idx] = head;
 
+				// Salvando il nuovo campione in due posizioni, si evita di dover gestire l'overflow dell'indice syn_head durante la convoluzione
 				state_syn[base_idx + head] = w_val;
 				state_syn[base_idx + head + filter_len] = w_val;
 
@@ -170,7 +176,6 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				out_val += (filter_out.re * rotor_syn.re - filter_out.im * rotor_syn.im);
 			}
 			out_x[l][n] = out_val * D * scale_factor;
-			// out_x[l][n] = out_val;
 		}
 		temp_global_n++;
 	}
@@ -216,6 +221,9 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				Ipp64fc s_true_val;
 				ippsMulC_64fc(&filter_out, rotor_ana, &s_true_val, 1);
 
+
+				// s_state è un array monodimensionale che contiene tutti i canali e tutte le sottobande
+				// s_head_idx è un array di indici che tiene traccia della posizione corrente per ogni canale e sottobanda
 				// Memorizza s_true_val nello stato
 				int ch_idx = i * L + l;
 				s_state[ch_idx * Ki + s_head_idx[ch_idx]] = s_true_val;
@@ -256,6 +264,8 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 			for (int l = 0; l < L; l++) {
 				int ch_idx = i * L + l;
 				for (int delay = 0; delay < Ki; delay++) {
+					// s_head_idx punta all'indice successivo da scrivere, quindi per leggere il campione più vecchio dobbiamo sottrarre 1, 
+					// poi sottrarre il delay e infine fare il modulo Ki per gestire l'overflow (+Ki per evitare valori negativi)
 					int read_idx_delay = (s_head_idx[ch_idx] - 1 - delay + Ki) % Ki;
 					s_ij[l * Ki + delay] = s_state[ch_idx * Ki + read_idx_delay];
 				}
@@ -301,7 +311,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				double reg = 0.1 * trace_R / P + 1e-6;
 				for (int p1 = 0; p1 < P; p1++) R_mat[p1 * P + p1].re += reg;
 
-				bool solver_ok = false;
+				bool solver_ok = false; // Controlla che la matrice non sia quasi singolare
 
 				if (P == 1) {
 					double det = R_mat[0].re;
@@ -493,8 +503,8 @@ void __stdcall PlugIn::LEPlugin_Init()
 
 			h_ana_complex[i * filter_len + m] = Ipp64fc{ real_part, imag_part };
 
-			// COSTRUZIONE DEI FILTRI INVERTITI PER IPPSDOTPROD
-			// Invertiamo l'ordine spaziale: indice (filter_len - 1 - m)
+			// Salvando i filtri in ordine inverso è possibile calcolare la convoluzione con ippsDotProd e salvare unicamente i campioni nel dominio decimato
+			// indice (filter_len - 1 - m) per invertire l'ordine dei tappi
 			h_ana_re_rev[i * filter_len + (filter_len - 1 - m)] = real_part;
 			h_ana_im_rev[i * filter_len + (filter_len - 1 - m)] = imag_part;
 		}
@@ -963,9 +973,12 @@ void __stdcall LENUTSDefProps(char *NameEffect,int *Width, void *data)
 void PlugIn::SaveEstimatedRIR(const char* filename)
 {
 	int impulse_len = K + 2 * filter_len;
+	// Campioni nel dominio decimato
 	int sub_frames_test = (impulse_len - 1) / D + 1;
+	// Campioni totali ricostruiti
 	int recon_len = (sub_frames_test - 1) * D + 1;
 
+	// Costruzione della delta di Dirac
 	Ipp64f* x_test = 0;
 	init_vector(x_test, impulse_len);
 	x_test[0] = 1.0;
@@ -985,10 +998,12 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 	Ipp64f* H_full_path = 0;
 	init_vector(H_full_path, recon_len);
 
+	// Passaggio nel banco di analisi
 	for (int k = 0; k < sub_frames_test; k++) {
 		int n_full = k * D;
 		for (int i = 0; i < I; i++) {
 			Ipp64fc filter_out = { 0.0, 0.0 };
+			// Applicazione del filtro prototipo
 			for (int v = 0; v < filter_len; v++) {
 				int read_idx = n_full + (filter_len - 1) - v;
 				double sample = 0.0;
@@ -1000,6 +1015,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 				filter_out.im += sample * h_val.im;
 			}
 			double angle = -(2.0 * IPP_PI * i * n_full) / I;
+			// Modulazione per traslare le sottobande in banda base prima della decimazione
 			Ipp64fc rotor = { cos(angle), sin(angle) };
 			ippsMulC_64fc(&filter_out, rotor, &s_sub[i * sub_frames_test + k], 1);
 		}
@@ -1010,6 +1026,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 
 	int delay_calib = filter_len - 1;
 
+	// Convoluzione in sottobande con la risposta stimata
 	for (int m = 0; m < M; m++) {
 		for (int l = 0; l < L; l++) {
 
@@ -1018,6 +1035,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 			ippsZero_64f(H_full_path, recon_len);
 
 			for (int i = 0; i < I; i++) {
+				// H_path punta al vettore di Ki coefficienti complessi stimati dall'algoritmo per la sottobanda i, microfono m e altoparlante l
 				Ipp64fc* H_path = &H_sub[i * M * L * Ki + m * L * Ki + l * Ki];
 
 				for (int k = 0; k < sub_frames_test; k++) {
@@ -1034,14 +1052,18 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 				}
 			}
 
+			// Banco di sintesi e ricostruzione fullband
 			for (int n = 0; n < recon_len; n++) {
 				double out_val = 0.0;
 				for (int i = 0; i < I; i++) {
 					int state_idx = i * (filter_len - 1);
 
+
+					// 1. Upsampling tramite inserimento di zeri
 					Ipp64fc w_val = { 0.0, 0.0 };
 					if (n % D == 0) w_val = y_sub_sim[i * sub_frames_test + (n / D)];
 
+					// 2. Filtraggio passa-basso con il filtro prototipo
 					Ipp64fc filter_out = { w_val.re * taps[0], w_val.im * taps[0] };
 					for (int v = 1; v < filter_len; v++) {
 						Ipp64fc state_val = sim_syn_state[state_idx + (v - 1)];
@@ -1049,6 +1071,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 						filter_out.im += state_val.im * taps[v];
 					}
 
+					// 3. Modulazione inversa per traslare le sottobande nella loro posizione originale
 					double angle = (2.0 * IPP_PI * i * n) / I;
 					Ipp64fc rotor = { cos(angle), sin(angle) };
 					out_val += (filter_out.re * rotor.re - filter_out.im * rotor.im);
@@ -1066,6 +1089,7 @@ void PlugIn::SaveEstimatedRIR(const char* filename)
 				if (delay_calib + k_idx < recon_len) {
 					val = H_full_path[delay_calib + k_idx];
 				}
+				// reinterpret_cast permette di scrivere direttamente il valore double come sequenza di byte nel file binario
 				outfile.write(reinterpret_cast<const char*>(&val), sizeof(double));
 			}
 		}

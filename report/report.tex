@@ -75,7 +75,7 @@
 	
 	Questo documento raccoglie, in forma cronologica, lo sviluppo e la sperimentazione di un algoritmo di stima e tracciamento della risposta impulsiva della stanza, o \ac{rir}, basato su filtraggio adattativo in sottobande, nel contesto dei sistemi di \ac{sfc} \cite{11249060, 11464373}.
 	
-	L'algoritmo di riferimento appartiene alla famiglia \ac{imsaf}: il segnale di eccitazione e i segnali captati dai microfoni vengono decomposti in sottobande tramite un \emph{banco filtri DFT}, e in ciascuna sottobanda un filtro adattativo di tipo \ac{nlms} stima la porzione corrispondente della RIR.
+	L'algoritmo di riferimento appartiene alla famiglia \ac{imsaf}: il segnale di eccitazione e i segnali captati dai microfoni vengono scomposti in sottobande tramite un \emph{banco filtri DFT}e, in ciascuna sottobanda, un filtro adattativo di tipo \ac{nlms} stima la porzione corrispondente della RIR.
 	La struttura in sottobande appiattisce lo spettro visto da ciascun filtro adattativo, riducendo la correlazione del segnale in ingresso e accelerando la convergenza rispetto a un adattamento a banda piena.
 	
 	Il lavoro è organizzato seguendo l'ordine cronologico delle implementazioni realizzate. 
@@ -89,10 +89,10 @@
 	L'obiettivo di questo lavoro è implementare un algoritmo di tracciamento della \ac{rir} ispirato a \cite{11464373}, scorporandolo dall'applicazione \ac{sfc} in cui è presentato in letteratura.
 	Nell'articolo originale, infatti, il tracciamento è asservito a un sistema di controllo del campo acustico che si alterna alla stima dei percorsi \cite{11249060}; qui si isola il solo blocco di identificazione, poiché la \ac{rir} ricostruita costituisce un'informazione utile a valle per algoritmi più vari: \ac{sfc}, controllo attivo del rumore, cancellazione d'eco acustica, equalizzazione di stanza.
 	
-	La struttura implementata è riassunta in Figura \ref{fig:mimo_diagram}, riadattata da \cite{11464373} omettendo la parte \ac{sfc}.
-	Il flusso è il seguente: il vettore dei segnali sorgente $\mathbf{x}(n)\in\mathbb{R}^{L}$ ($L$ canali, con $n$ indice temporale a banda piena) viene decomposto in $I$ sottobande e decimato di un fattore $D$ (Sez. \ref{ssec:dft_bank}), ottenendo i segnali di sottobanda $\mathbf{x}_i(k) \in\mathbb{C}^L$ (con $i=1,\dots,I$ e $k$ indice temporale nel dominio decimato); questi vengono decorrelati tramite modulazione di fase (Sez. \ref{ssec:ph_mod}) e risintetizzati nel vettore $\mathbf{s}(n)\in\mathbb{R}^{L}$ dei segnali fisicamente inviati agli altoparlanti.
+	La struttura implementata è rappresentata schematicamente in Figura \ref{fig:mimo_diagram}, riadattata da \cite{11464373} omettendo la parte \ac{sfc}.
+	Il flusso è il seguente: il vettore dei segnali sorgente $\mathbf{x}(n)\in\mathbb{R}^{L}$ ($L$ canali, con $n$ indice temporale a banda piena) viene decomposto in $I$ sottobande e decimato di un fattore $D$ (Sez. \ref{ssec:dft_bank}), ottenendo i segnali di sottobanda $\mathbf{x}_i(k) \in\mathbb{C}^L$ (con $i=1,\dots,I$ indice di sottobanda e $k$ indice temporale nel dominio decimato); questi vengono decorrelati tramite modulazione di fase (Sez. \ref{ssec:ph_mod}) e risintetizzati nel vettore $\mathbf{s}(n)\in\mathbb{R}^{L}$ dei segnali fisicamente inviati agli altoparlanti.
 	La stanza, descritta dalla matrice $\mathbf{H}(n)\in\mathbb{R}^{M\times LK}$ delle \ac{rir} vere (dove $K$ è la lunghezza della \ac{rir} e $n$ ne indica l'eventuale tempovarianza), restituisce ai microfoni i segnali $\mathbf{y}(n)\in\mathbb{R}^{M}$ ($M$ microfoni); il modello ingresso uscita in sottobanda è formalizzato nella Sez. \ref{ssec:model_ident} (Eq. \ref{eq:subband_model}).
-	Sia i segnali degli altoparlanti sia quelli dei microfoni vengono nuovamente analizzati in sottobande e, in ciascuna sottobanda, una matrice di filtri adattativi $\hat{\mathbf{H}}_i(k)\in\mathbb{C}^{M\times LK_i}$ ne stima la porzione corrispondente. Poiché l'identificazione avviene interamente in sottobanda, il filtro non modella la \ac{rir} originale ma la sua versione filtrata dal banco di analisi, allungata dalla convoluzione con il prototipo di lunghezza $V$ (Sez.~\ref{ssec:dft_bank}); la lunghezza della \ac{rir} in sottobanda è quindi $K_i=\lceil (K+V-1)/D\rceil$.
+	Sia i segnali degli altoparlanti sia quelli dei microfoni vengono nuovamente analizzati in sottobande e, in ciascuna sottobanda, una matrice di filtri adattativi $\hat{\mathbf{H}}_i(k)\in\mathbb{C}^{M\times LK_i}$ ne stima la porzione corrispondente. Poiché l'identificazione avviene interamente in sottobanda, il filtro non modella la \ac{rir} originale ma la sua versione filtrata dal banco di analisi e allungata dalla convoluzione con il prototipo di lunghezza $V$ (Sez.~\ref{ssec:dft_bank}); la lunghezza della \ac{rir} in sottobanda è quindi $K_i=\lceil (K+V-1)/D\rceil$.
 	L'adattamento è guidato dall'errore di predizione (Sez. \ref{ssec:filter_update}), mentre il segnale in sottobanda, sbiancato da uno stadio di predizione lineare (Sez. \ref{ssec:whitening}), fornisce la direzione dell'aggiornamento; il passo è pesato in modo inversamente proporzionale alla potenza media di ciascuna sottobanda (Sez. \ref{ssec:weights}).
 	Al termine, le \ac{rir} a banda piena vengono ricostruite dalle stime in sottobanda (Sez.~\ref{ssec:h_recon}) e confrontate con quelle vere tramite \ac{nm} (Sez. \ref{ssec:nm_metric}).
 
@@ -106,14 +106,12 @@
 	\subsection{Banco filtri DFT}\label{ssec:dft_bank}
 	Il banco filtri DFT realizza la scomposizione di un segnale a banda piena in $I$ sottobande uniformi.
 	Tutti i filtri del banco derivano da un unico filtro prototipo passa-basso $h_p(v)$ di lunghezza $V$.
-	In ciascun ramo il segnale viene prima modulato per riportare la sottobanda $i$ in banda base, poi filtrato col prototipo; avendo ora banda circa $1/I$, può essere decimato di un fattore $D$.
+	In ciascun ramo il segnale viene prima modulato per riportare la sottobanda $i$ in banda base e poi filtrato col prototipo; avendo, in seguito a queste opearzioni, una banda ridott di un fattore pari a circa $1/I$, può essere infine decimato di un fattore $D$.
 	
-	La sintesi è la struttura duale: sovracampionamento per inserzione di zeri, filtraggio interpolatore e modulazione inversa per ricollocare ciascuna sottobanda attorno alla propria frequenza centrale.
+	La struttura del banco di sintesi è duale a quella del banco di analisi. Infatti, il segnale in sottobande viene prima sovracampionato tramite l'inserimento di zeri, poi interpolato tramite un filtro e, infine, subisce la modulazione inversa atta a ricollocare ciascuna sottobanda attorno alla propria frequenza centrale.
+	Per questioni pratiche solitamente non si adotta un \emph{campionamento critico} ($D=I$), ma si sceglie $D<I$ (banco \emph{sovracampionato}). In questo modo, la banda di guardia che ne deriva fa sì che le code del prototipo si ripieghino, dopo la decimazione, in regioni già fortemente attenuate, rendendo trascurabile l'aliasing tra sottobande. Con campionamento critico, al contrario, l'aliasing di banco richiederebbe filtri adattativi incrociati tra sottobande adiacenti, che la struttura qui adottata (un filtro per sottobanda) non prevede.
 	
-	Si sceglie $D<I$ (banco \emph{sovracampionato}): la banda di guardia che ne deriva fa sì che le code del prototipo si ripieghino, dopo la decimazione in regioni già fortemente attenuate, rendendo trascurabile l'aliasing tra sottobande.
-	Con campionamento critico $D=I$ l'aliasing di banco richiederebbe filtri adattativi incrociati tra sottobande adiacenti, che la struttura qui adottata (un filtro per sottobanda) non prevede.
-	
-	La cascata analisi sintesi non è comunque l'identità esatta: introduce un ritardo di gruppo pari a $V-1$ campioni (somma dei $(V-1)/2$ di ciascun banco), un guadagno di $1/D$ dovuto all'inserzione di zeri e un errore di ricostruzione residuo che dipende dal progetto del filtro prototipo, aspetti che rientreranno sia nella ricostruzione della \ac{rir} sia nel floor del \ac{nm} osservato nelle simulazioni.
+	La cascata di banco di analisi e banco di sintesi non coincide comunque con l'identità esatta, ma introduce un ritardo di gruppo pari a $V-1$ campioni (somma dei $(V-1)/2$ di ciascun banco), un guadagno di $1/D$ dovuto all'inserimento di zeri e un errore di ricostruzione residuo che dipende dal progetto del filtro prototipo, aspetti che impatteranno sia nella ricostruzione della \ac{rir} sia nel floor del \ac{nm} osservato nelle simulazioni.
 	
 	\subsection{Modello in sottobanda e problema dell'identificabilità}\label{ssec:model_ident}
 	
@@ -190,7 +188,7 @@
 		\underline{\mathbf{u}}_i(k) = \underline{\mathbf{s}}_i(k) - \mathbf{S}_i(k)\,\mathbf{a}_i(k),
 		\label{eq:whitened}
 	\end{equation}
-	ortogonale al passato per costruzione. Rimuovendo la componente prevedibile, $\underline{\mathbf{u}}_i(k)$ è temporalmente meno correlato di $\underline{\mathbf{s}}_i(k)$: con un ordine $P$ adeguato (in pratica $P = 2$ o $3$ sono sufficienti \cite{11464373}) approssima un processo bianco e fornisce una direzione di aggiornamento meglio condizionata.
+	ortogonale al passato per costruzione. Rimuovendo la componente predicibile, $\underline{\mathbf{u}}_i(k)$ è temporalmente meno correlato di $\underline{\mathbf{s}}_i(k)$. Pertanto, con un ordine $P$ adeguato (solitamente $P = 2$ o $P=3$ sono sufficienti \cite{11464373}), $\underline{\mathbf{u}}_i(k)$ approssima un processo bianco e fornisce una direzione di aggiornamento meglio condizionata.
 	
 	\subsection{Aggiornamento dei filtri adattativi}\label{ssec:filter_update}
 	In ciascuna sottobanda l'errore di predizione è calcolato con il vettore d'ingresso \emph{originale},
@@ -221,9 +219,9 @@
 	Il termine $\varepsilon_w$, proporzionale al picco di potenza anziché assoluto, evita che una sottobanda quasi vuota riceva peso illimitato (amplificando aggiornamenti di solo rumore) e mantiene il comportamento indipendente dalla scala del segnale.
 	
 	\subsection{Ricostruzione della RIR a banda piena}\label{ssec:h_recon}
-	I coefficienti $\hat{\mathbf{H}}_i$ sono complessi, decimati di un fattore $D$ e portano il ritardo e il guadagno introdotti dal banco di filtri; la \ac{rir} da stimare è invece reale, a piena frequenza e priva di tali effetti. Non esiste quindi una corrispondenza diretta tra i coefficienti in sottobanda e i campioni della \ac{rir}: occorre un passo di ricostruzione.
+	I coefficienti $\hat{\mathbf{H}}_i$ sono complessi, decimati di un fattore $D$ e portano il ritardo e il guadagno introdotti dal banco di filtri; la \ac{rir} da stimare è invece reale, a piena frequenza e priva di tali effetti. Non esiste quindi una corrispondenza diretta tra i coefficienti in sottobanda e i campioni della \ac{rir} ma occorre un passo di ricostruzione.
 	La ricostruzione adottata emula la fisica del sistema identificato: un impulso unitario $\delta(n)$ viene fatto passare attraverso il banco di analisi, i filtri di sottobanda stimati $\hat{\mathbf{H}}_i$ e il banco di sintesi.
-	L'uscita è la risposta impulsiva dell'intera cascata, dalla quale si ottiene $\hat{h}_{ml}(n)$ compensando il ritardo di gruppo dei due passaggi nel prototipo ($V-1$ campioni complessivi) e il guadagno $1/D$ della catena decimazione interpolazione, e troncando ai $K$ campioni della \ac{rir} vera, così da confrontare stime e risposte reali sulla stessa lunghezza nel calcolo del \ac{nm}.
+	L'uscita è la risposta impulsiva dell'intera cascata, dalla quale si ottiene $\hat{h}_{ml}(n)$ compensando il ritardo di gruppo dei due passaggi nel prototipo ($V-1$ campioni complessivi) e il guadagno $1/D$ della catena decimazione interpolazione, e troncando ai $K$ campioni della \ac{rir} vera, così da poter calcolare il \ac{nm} tra stime e risposte reali riportate sul medesimo riferimento temporale.
 	
 	\subsection{Metrica di valutazione}\label{ssec:nm_metric}
 	L'accuratezza della stima è quantificata dal \ac{nm}, definito tramite la norma di Frobenius:
@@ -234,8 +232,8 @@
 		\label{eq:nm}
 	\end{equation}
 	dove $\mathbf{H}$ e $\hat{\mathbf{H}}$ raccolgono rispettivamente le \ac{rir} vere e ricostruite.
-	La norma di Frobenius sintetizza in un unico scalare l'errore sull'insieme delle risposte: nel caso \ac{mimo} sulle $M \times L$ \ac{rir}, e nel caso \ac{siso} si riduce alla norma euclidea della singola risposta.
-	Il \ac{nm} misura così il rapporto tra l'energia dell'errore di stima e quella delle risposte vere: è la metrica che verrà usata in tutte le simulazioni.
+	La norma di Frobenius sintetizza in un unico scalare l'errore sull'insieme delle  $M \times L$ \ac{rir} e, nel caso \ac{siso}, si riduce alla norma euclidea, riottenendo la definizione classica di \ac{nm}.
+	Il \ac{nm} misura così il rapporto tra l'energia dell'errore di stima e quella delle risposte vere ed è la metrica che verrà usata in tutte le simulazioni.
 	
 	\section{Simulazioni (MATLAB)}
 
@@ -298,7 +296,7 @@
 	L'individuazione di una configurazione adeguata richiede una ricerca per tentativi, mentre il coseno rialzato garantisce una ricostruzione accurata senza necessità di tuning.
 	
 	Il banco basato sul coseno rialzato presenta quindi un comportamento complessivamente più regolare e prevedibile. 
-	Le simulazioni sono state condotte assumendo una frequenza di campionamento $f_{s}=\SI{16}{\kilo\hertz}$.
+%	Le simulazioni sono state condotte assumendo una frequenza di campionamento $f_{s}=\SI{16}{\kilo\hertz}$.
 	
 	\begin{figure}[H]
 		\centering
@@ -563,7 +561,7 @@
 	
 	La Figura~\ref{fig:nm_subband_sweep} mostra un comportamento non monotono: le prestazioni migliorano all'aumentare di $I$ fino a un ottimo, per poi degradare. Il riferimento \ac{nlms} ($I = 1$) si arresta attorno a $-12$~\si{\decibel}, superato da tutte le configurazioni in sottobande a eccezione di $I = 64$: ciò conferma il vantaggio dell'approccio a sottobande, che decorrela l'ingresso e ne accelera la convergenza. L'ottimo si ha per $I = 8$ ($D = 2$), che raggiunge il floor più basso (circa $-30$~\si{\decibel}) con la convergenza più rapida; oltre tale valore la tendenza si inverte e le prestazioni degradano progressivamente, fino a $I = 64$ che scende appena sotto il riferimento fullband.
 	
-	Il degrado alle alte $I$ è legato all'eccitazione delle sottobande. Suddividendo un segnale reale, tipicamente passa-basso, in un numero crescente di sottobande, ciascuna diventa più stretta e riceve una porzione di energia inferiore: le sottobande relative alle alte frequenze risultano scarsamente eccitate e vengono stimate con difficoltà. Inoltre, con $D = I/4$ la decimazione cresce con $I$, riducendo il numero di campioni disponibili per sottobanda e rallentando la convergenza.
+	Il degrado alle alte $I$ è legato all'eccitazione delle sottobande. Suddividendo un segnale reale, tipicamente passa-basso, in un numero crescente di sottobande, ciascuna sottobanda diventa più stretta e riceve una porzione di energia inferiore: le sottobande relative alle alte frequenze risultano scarsamente eccitate e vengono stimate con difficoltà. Inoltre, con $D = I/4$ la decimazione cresce con $I$, riducendo il numero di campioni disponibili per sottobanda e rallentando la convergenza.
 	
 	Per il segnale e la durata considerati, $I = 8$ rappresenta quindi il miglior compromesso: un numero di sottobande sufficiente a decorrelare l'ingresso, senza frammentare eccessivamente lo spettro in sottobande sotto-eccitate.
 	\begin{figure}[H]
