@@ -164,12 +164,21 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				if (head < 0) head = filter_len - 1;
 				syn_head[channel_idx] = head;
 
-				// Salvando il nuovo campione in due posizioni, si evita di dover gestire l'overflow dell'indice syn_head durante la convoluzione
+				// Salvando il nuovo campione in due posizioni si hanno valori contigui in memoria, semplificando l'uso di ippsDotProd
 				state_syn[base_idx + head] = w_val;
 				state_syn[base_idx + head + filter_len] = w_val;
 
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				Ipp64fc* state_ptr = &state_syn[base_idx + head];
+
+				// Nota sul doppio buffer: se usassimo un buffer circolare classico, supponendo di avere 5 elementi, potremmo essere in una situazione,
+				// rispetto ad un istante x_i, del tipo (ipotizzando head = 1):
+				// [x_{i-1}, x_{i}, x_{i-4}, x_{i-3}, x_{i-2}]
+				// In tal caso, poiché avremmo bisogno dei campioni fino a x_{i-4}, dovremmo fare due chiamate a ippsDotProd o rielaborare il buffer.
+
+				// Al contrario, scrivendo i campioni due volte separati dalla lunghezza del filtro, otterremmo, nello stesso scenario, un vettore nella forma:
+				// [x_{i-1}, x_{i}, x_{i-4}, x_{i-3}, x_{i-2} | x_{i-1}, x_{i}, x_{i-4}, x_{i-3}, x_{i-2}]
+				// In questo caso, usando ippsDotProd partendo da x_{i} (head = 1) e leggendo 5 campioni, otterremmo proprio [x_{i}, x_{i-4}, x_{i-3}, x_{i-2} | x_{i-1}]
 				ippsDotProd_64f64fc(taps, state_ptr, filter_len, &filter_out);
 
 				Ipp64fc rotor_syn = dft_rot_syn[i * I + n_mod];
