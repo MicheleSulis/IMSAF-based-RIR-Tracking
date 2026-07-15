@@ -301,6 +301,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 
 			if (P > 0) {
 				// Preparazione dei vettori e delle matrici per il calcolo del sistema R_mat * a_i = P_vec, con R_mat matrice di autocorrelazione e P_vec vettore di cross-correlazione
+				// da cui poi si ricava a_i = R_mat^{-1} * P_vec
 				ippsConj_64fc(s_ij, s_ij_conj, L * Ki);
 				double trace_R = 0.0;
 
@@ -332,6 +333,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				for (int p1 = 0; p1 < P; p1++) R_mat[p1 * P + p1].re += reg;
 
 				bool solver_ok = false; // Controlla che la matrice non sia quasi singolare
+				// Inversione di R_mat e calcolo di a_i
 				// N.B.: gli elementi sulla diagonale di una matrice hermitiana sono sicuramente reali
 				if (P == 1) {
 					double det = R_mat[0].re;
