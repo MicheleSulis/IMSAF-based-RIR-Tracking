@@ -285,6 +285,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 			double norm_s = norm_s_val * norm_s_val;
 
 			if (norm_s < 1e-8) {
+				// Preparazione dei coniugati per il calcolo successivo
 				if (P > 0) {
 					ippsMove_64fc(&S_memory[i * P * L * Ki], &S_memory[i * P * L * Ki + L * Ki], (P - 1) * L * Ki);
 					ippsCopy_64fc(s_ij, &S_memory[i * P * L * Ki], L * Ki);
@@ -299,18 +300,28 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 			ippsCopy_64fc(s_ij, u_ij, L * Ki);
 
 			if (P > 0) {
+				// Preparazione dei vettori e delle matrici per il calcolo del sistema R_mat * a_i = P_vec, con R_mat matrice di autocorrelazione e P_vec vettore di cross-correlazione
 				ippsConj_64fc(s_ij, s_ij_conj, L * Ki);
 				double trace_R = 0.0;
 
 				for (int p1 = 0; p1 < P; p1++) {
+					// Considera il p1-esimo vettore passato
 					Ipp64fc* S_p1_conj = &S_memory_conj[i * P * L * Ki + p1 * L * Ki];
+					// Calcolo dell'elemento p1-esimo di P_vec, dato dal prodotto tra s_ij e il coniugato del p1-esimo vettore passato
 					ippsDotProd_64fc(S_p1_conj, s_ij, L * Ki, &P_vec[p1]);
 
+					// Calcolo della matrice di autocorrelazione
+					// N.B.: l'operazione s^H * s dà luogo ad una matrice hermitiana che, in quanto tale, è simmetrica coniugata (R_ij = R_ji^*).
+					// Per tale ragione, è sufficiente calcolare il triangolo superiore e copiare i valori coniugati nel triangolo inferiore.
 					for (int p2 = p1; p2 < P; p2++) {
+						// Estrazione del p2-esimo vettore passato
 						Ipp64fc* S_p2 = &S_memory[i * P * L * Ki + p2 * L * Ki];
 						Ipp64fc r_val;
+						// Calcolo del prodotto scalare tra il coniugato del p1-esimo vettore passato e il p2-esimo vettore passato
 						ippsDotProd_64fc(S_p1_conj, S_p2, L * Ki, &r_val);
+						// Triangolo superiore
 						R_mat[p1 * P + p2] = r_val;
+						// Se non si è sulla diagonale, copia il valore coniugato (-r_val.im) nel triangolo inferiore
 						if (p1 != p2) R_mat[p2 * P + p1] = { r_val.re, -r_val.im };
 					}
 					trace_R += R_mat[p1 * P + p1].re;
@@ -321,7 +332,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				for (int p1 = 0; p1 < P; p1++) R_mat[p1 * P + p1].re += reg;
 
 				bool solver_ok = false; // Controlla che la matrice non sia quasi singolare
-
+				// N.B.: gli elementi sulla diagonale di una matrice hermitiana sono sicuramente reali
 				if (P == 1) {
 					double det = R_mat[0].re;
 					if (det > 1e-30) {
