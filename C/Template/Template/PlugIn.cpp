@@ -159,7 +159,8 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 					w_val = s_decorr[channel_idx * sub_frames + k_local];
 				}
 
-				// I nuovi campioni vengono inseriti negli indici più bassi
+				// I nuovi campioni vengono inseriti negli indici più bassi poiché per il calcolo della convoluzione è necessario invertire l'ordine dei campioni
+				// di uno dei due segnali. Salvando direttamente i campioni in ordine inverso è possibile usare ippsDotProd senza dover rielaborare il buffer.
 				head--;
 				if (head < 0) head = filter_len - 1;
 				syn_head[channel_idx] = head;
