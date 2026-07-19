@@ -115,8 +115,11 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 		int k_mod = temp_global_k % I;
 
 		for (int i = 0; i < I; i++) {
-			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod]; // Coefficiente di analisi per la sottobanda i-esima relativo al campione k_mod
+			Ipp64fc rotor_ana = dft_rot_ana[i * I + k_mod]; // Coefficiente di modulazione per la sottobanda i-esima relativo al campione k_mod
 			for (int l = 0; l < L; l++) {
+				// N.B.: a differenza di quanto fatto nell'implementazione MATLAB (in cui prima si modulava l'intero segnale e poi si applicava il filtro passa-basso prototipo),
+				// qui prima si applica il filtro di analisi (passa-basso modulato -> passa-banda) isolando la sottobanda i-esima, e poi si modula il segnale filtrato
+				// per portarlo a basse frequenze e applicare la modulazione
 				Ipp64fc filter_out = { 0.0, 0.0 };
 				int read_idx = l * (FrameSize + filter_len - 1) + n_full;
 				// Tramite queste funzioni si calcolano le convoluzioni tra il segnale di ingresso e il filtro di analisi (diviso in parte reale e immaginaria)
@@ -142,7 +145,7 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 	int temp_global_n = global_n;
 	for (int n = 0; n < FrameSize; n++) {
 		int n_mod = temp_global_n % I;
-		bool is_new_subframe = (n % D == 0);
+		bool is_new_subframe = (n % D == 0); // Flag che controlla se il campione corrente è "vero" o deve essere uno zero per l'interpolazione
 		int k_local = n / D;
 
 		for (int l = 0; l < L; l++) {
@@ -154,9 +157,9 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 
 				// Per gestire la sintesi, è necessario inserire un nuovo campione e, al tempo stesso, leggere V campioni passati
 
-				Ipp64fc w_val = { 0.0, 0.0 };
+				Ipp64fc w_val = { 0.0, 0.0 }; // Se il campione deve essere uno zero, l'istruzione seguente non viene eseguita
 				if (is_new_subframe) {
-					w_val = s_decorr[channel_idx * sub_frames + k_local];
+					w_val = s_decorr[channel_idx * sub_frames + k_local]; // Se ((n % D) == 0) (il campione è "vero"), si legge il campione dalla memoria
 				}
 
 				// I nuovi campioni vengono inseriti negli indici più bassi poiché per il calcolo della convoluzione è necessario invertire l'ordine dei campioni
@@ -182,6 +185,8 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 				// In questo caso, usando ippsDotProd partendo da x_{i} (head = 1) e leggendo 5 campioni, otterremmo proprio [x_{i}, x_{i-1}, x_{i-2}, x_{i-3} | x_{i-4}]
 				ippsDotProd_64f64fc(taps, state_ptr, filter_len, &filter_out);
 
+				// N.B: dopo l'upsampling si applica il filtro prototipo a rate originale per sfruttare l'imaging e realizzare un'interpolazione.
+				// Dopo l'interpolazione è poi necessario riportare il segnale alla frequenza originale applicando la modulazione duale a quella applicata in fase di analisi
 				Ipp64fc rotor_syn = dft_rot_syn[i * I + n_mod];
 				out_val += (filter_out.re * rotor_syn.re - filter_out.im * rotor_syn.im);
 			}
@@ -518,6 +523,7 @@ void __stdcall PlugIn::LEPlugin_Init()
 		alpha_rad[i] = alpha_deg * (IPP_PI / 180.0);
 	}
 
+	// Costruzione tweedle per il calcolo della DFT
 	for (int i = 0; i < I; i++) {
 		for (int m = 0; m < filter_len; m++) {
 			double angle = (2.0 * IPP_PI * i * m) / I;
@@ -531,12 +537,20 @@ void __stdcall PlugIn::LEPlugin_Init()
 			h_ana_re_rev[i * filter_len + (filter_len - 1 - m)] = real_part;
 			h_ana_im_rev[i * filter_len + (filter_len - 1 - m)] = imag_part;
 		}
-
+		// Rotori di analisi:
+		// In generale, la sottobanda i-esima all'istante n va modulata per un fattore e^{-2j*pi*i*n/I}
+		// Nel caso di un banco decimato, invece, bisogna considerare solo i campioni n = k*D, da cui theta = -2j*pi*i*(k*D)/I
+		// Inoltre, considerato che seno e coseno sono periodici, per ogni sottobanda è sufficiente calcolare i valori per k = 0, 1, ..., I-1
+		// in quanto per k = I si recupera theta = -2j*pi*i*D, che è equivalente a theta = 0 poiché i*D è un valore intero
 		for (int k_mod = 0; k_mod < I; k_mod++) {
 			double angle = -(2.0 * IPP_PI * i * (k_mod * D) / I);
 			dft_rot_ana[i * I + k_mod] = Ipp64fc{ cos(angle), sin(angle) };
 		}
 
+		// Rotori di sintesi:
+		// In generale, la sottobanda i-esima all'istante n va modulata per un fattore e^{2j*pi*i*n/I}
+		// Nella fase di sintesi si lavora al rate originale, pertanto è necessario calcolare un rotore per ogni istante n
+		// Tuttavia, sfruttando la periodicità del seno e del coseno, è sufficiente calcolare i valori per n = 0, 1, ..., I-1 per ogni sottobanda
 		for (int n_mod = 0; n_mod < I; n_mod++) {
 			double angle = (2.0 * IPP_PI * i * n_mod) / I;
 			dft_rot_syn[i * I + n_mod] = Ipp64fc{ cos(angle), sin(angle) };
