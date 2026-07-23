@@ -60,11 +60,6 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 {
 	int sub_frames = FrameSize / D;
 
-	// La rappresentazione del Nu-Tech tramite interi a 16 bit rischia di far divergere i valori dell'algoritmo
-	// double scale_factor = 32768.0;
-	double scale_factor = 2147483648.0;
-	double inv_scale = 1.0 / scale_factor;
-
 	double lambda = 0.99;
 	global_max_power = 1e-12;
 

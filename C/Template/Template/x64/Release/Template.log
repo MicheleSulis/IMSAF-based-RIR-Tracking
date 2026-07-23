@@ -14,55 +14,58 @@ C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\LEEffect.h(226,14): 
   (compilazione del file di origine '/PlugIn.cpp')
   
 C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\numbers(11): warning STL4038: The contents of <numbers> are available only with C++20 or later.
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(423,11): warning C4244: '=': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(8,2): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(579,29): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(477,11): warning C4244: '=': conversione da 'double' a 'int'. Possibile perdita di dati.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(580,49): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(642,29): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(581,19): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(643,49): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(621,2): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(644,19): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(638,4): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(684,2): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(732,3): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(701,4): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(799,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(795,3): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(819,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(862,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(829,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(882,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(839,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(892,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(849,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(902,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(859,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(912,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(869,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(922,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(879,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(932,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(889,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(942,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
-C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(950,2): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(952,2): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  (compilazione del file di origine '/PlugIn.cpp')
+  
+C:\Users\mauro\IMSAF-based-RIR-Tracking\C\Template\Template\PlugIn.cpp(1013,2): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   (compilazione del file di origine '/PlugIn.cpp')
   
   Template.cpp
