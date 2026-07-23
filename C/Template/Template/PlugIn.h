@@ -81,9 +81,9 @@ public:
 
 private:
 	// Nel codice matlab filter_len = V
-	int FrameSize,SampleRate, filter_len, L, M, I, D, P, K, Ki;
+	int FrameSize,SampleRate, filter_len, L, M, I, D, P, K, Ki, driver_type;
 	char save_name[MAX_FILE_NAME_LENGTH];
-	double delta_h, mu_h;
+	double delta_h, mu_h, scale_factor, inv_scale;;
 	// Tappi del filtro prototipo
 	Ipp64f* taps;
 	// Filtri complessi modulati per l'analisi, di lunghezza I*V

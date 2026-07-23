@@ -4,11 +4,8 @@
 
 PlugIn::PlugIn(InterfaceType _CBFunction,void * _PlugRef,HWND ParentDlg): LEEffect(_CBFunction,_PlugRef,ParentDlg)
 {
-	// Chiamata alla CBFunction
-	FrameSize = CBFunction(this,NUTS_GET_FS_SR,0,(LPVOID)AUDIOPROC);
-	SampleRate = CBFunction(this,NUTS_GET_FS_SR,1,(LPVOID)AUDIOPROC);	
-	
 	memset(save_name, 0, MAX_FILE_NAME_LENGTH * sizeof(char));
+	strcpy(save_name, "C:\\Users\\mauro\\IMSAF-based-RIR-Tracking\\MATLAB\\prototype_filter.dat");
 	delta_h = 0.01;
 	mu_h = 0.32;
 	P = 2;
@@ -64,7 +61,8 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 	int sub_frames = FrameSize / D;
 
 	// La rappresentazione del Nu-Tech tramite interi a 16 bit rischia di far divergere i valori dell'algoritmo
-	double scale_factor = 32768.0;
+	// double scale_factor = 32768.0;
+	double scale_factor = 2147483648.0;
 	double inv_scale = 1.0 / scale_factor;
 
 	double lambda = 0.99;
@@ -458,6 +456,24 @@ int __stdcall PlugIn::LEPlugin_Process(PinType** Input, PinType** Output, LPVOID
 
 void __stdcall PlugIn::LEPlugin_Init()
 {
+	// Chiamata alla CBFunction
+	FrameSize = CBFunction(this, NUTS_GET_FS_SR, 0, (LPVOID)AUDIOPROC);
+	SampleRate = CBFunction(this, NUTS_GET_FS_SR, 1, (LPVOID)AUDIOPROC);
+	driver_type = CBFunction(this, NUTS_GETDRIVERTYPE, 0, 0);
+
+	switch (driver_type) {
+		case 1: // Driver ASIO
+			scale_factor = 2147483648.0;
+			break;
+		case 2: // Driver DirectSound
+			scale_factor = 32768.0;
+			break;
+		default:
+			scale_factor = 32768.0;
+			break;
+	}
+	inv_scale = 1.0 / scale_factor;
+
 	Ki = ceil((double)(K + filter_len) / D);
 
 	init_vector(taps, filter_len);
@@ -634,7 +650,7 @@ int __stdcall PlugIn::LESetDefPin(int index,int type, PinType *Info)
 	if (type==OUTPUT) 
 	{
 		Info->DataType=PLAYBUFFER;
-		Info->Exclusive=true; 
+		Info->Exclusive=false; 
 		Info->DataLen=FrameSize;
 		Info->MaxDataLen=FrameSize;
 		return OUTPUT; 
@@ -643,7 +659,7 @@ int __stdcall PlugIn::LESetDefPin(int index,int type, PinType *Info)
 	if (type==INPUT) 
 	{
 		Info->DataType=PLAYBUFFER;
-		Info->Exclusive=true; 
+		Info->Exclusive=false; 
 		Info->DataLen=FrameSize;
 		Info->MaxDataLen=FrameSize;
 		return INPUT; 
