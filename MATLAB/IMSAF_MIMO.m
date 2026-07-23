@@ -4,7 +4,7 @@ close all;
 L = 2; % numero di altoparlanti (numero di canali): se M=2 massimo L=5
 M = 1; % numero di microfoni
 M_plotted = 1;
-L_plotted = 1;
+L_plotted = 2;
 I = 8; % numero di sottobande
 D = 2; % fattore di decimazione
 P = 2; % P = 0: nessuna decorrelazione
@@ -12,7 +12,7 @@ mu_h = 0.32;
 delta_h = 1e-2;  
 delta_ap = 1e-1;
 K = 256; % lunghezza delle RIR (se la RIR vera è più lunga viene troncata)
-offset = 100; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
+offset = 0; % offset applicato alla RIR (utile se la RIR vera presenta molti 0 all'inizio)
 fs = 44100; % Frequenza di campionamento (necessaria per la modulazione di fase)
 N = fs * 30; % Permette di scegliere N in secondi a partire da fs
 
@@ -253,7 +253,7 @@ for k=1:K_len
         end
         % Calcolo dell'errore
         y_ki = squeeze(y_subband(k, i, :)); % Estrazione del vettore Mx1
-        if M==1, y_ki = y_ki'; end
+        if M==1, y_ki = y_ki.'; end
         H_hat = reshape(H_subband(i,:,:), [M, L*Ki]); % Estrazione della matrice MxL*Ki
         e_ki = y_ki - H_hat * s_ij; % Errore nella sottobanda i-esima
         norm_u = norm(u_ij)^2;
