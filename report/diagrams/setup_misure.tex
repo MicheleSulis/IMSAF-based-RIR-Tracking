@@ -16,7 +16,7 @@
   \def\micY{0}       % quota dei microfoni
 
   % ============ Casse (rivolte verso il basso) ============
-  \foreach \x/\name in {0/$L_1$, \axdist/$L_2$} {
+  \foreach \x/\name in {0/$L_2$, \axdist/$L_1$} {
     \draw[thick, fill=black!8] (\x-0.18,\spkY+0.35) rectangle (\x+0.18,\spkY+0.75);
     \draw[thick, fill=black!8] (\x-0.18,\spkY+0.35) -- (\x+0.18,\spkY+0.35)
       -- (\x+0.42,\spkY) -- (\x-0.42,\spkY) -- cycle;
@@ -26,7 +26,7 @@
   }
 
   % ============ Microfoni (capsula rivolta verso il diffusore) ============
-  \foreach \x/\name in {0/$M_1$, \axdist/$M_2$} {
+  \foreach \x/\name in {0/$M_2$, \axdist/$M_1$} {
     \node[mic] at (\x,\micY) {};
     \draw[thick, line cap=round] (\x,\micY-0.07) -- (\x,\micY-0.38);
     \node[below] at (\x,\micY-0.40) {\name};

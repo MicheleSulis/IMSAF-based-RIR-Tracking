@@ -29,7 +29,7 @@
 \newacronym{lfe}{LFE}{Low Frequency Effects}
 
 \title{IMSAF based RIR tracking}
-\author{Michele Sulis \and Mauro Michele Maria Costantino}
+\author{Mauro Michele Maria Costantino \and Michele Sulis}
 \date{\today}
 
 
@@ -62,7 +62,7 @@
 %%		Risultati (più RIR Tutte le prove varie)
 %%			Grafici H
 %%
-%% Risultati finali e futuri sviluppi
+%% Conclusioni e futuri sviluppi
 
 \begin{document}
 	
@@ -80,7 +80,7 @@
 	Si estende poi al caso \ac{mimo} (più altoparlanti, più microfoni), affrontando il problema dell'\emph{identificabilità} dovuto alla correlazione tra i canali di eccitazione e le tecniche di decorrelazione necessarie a una stima accurata.
 	
 	L'algoritmo validato in simulazione viene implementato in C++ come plugin per la piattaforma real-time NU-Tech \cite{nutech} e testato real-time in laboratorio.
-
+	
 	\section{IMSAF based RIR tracking}
 	L'obiettivo di questo lavoro è implementare un algoritmo di tracciamento della \ac{rir} ispirato a \cite{11464373}, scorporandolo dall'applicazione \ac{sfc} in cui è presentato in letteratura.
 	Nell'articolo originale, infatti, il tracciamento è asservito a un sistema di controllo del campo acustico che si alterna alla stima dei percorsi \cite{11249060}; qui si isola il solo blocco di identificazione, poiché la \ac{rir} ricostruita costituisce un'informazione utile a valle per algoritmi più vari: \ac{sfc}, controllo attivo del rumore, cancellazione d'eco acustica, equalizzazione di stanza.
@@ -231,6 +231,7 @@
 	La norma di Frobenius sintetizza in un unico scalare l'errore sull'insieme delle  $M \times L$ \ac{rir} e, nel caso \ac{siso}, si riduce alla norma euclidea, riottenendo la definizione classica di \ac{nm}.
 	Il \ac{nm} misura così il rapporto tra l'energia dell'errore di stima e quella delle risposte vere ed è la metrica che verrà usata in tutte le simulazioni.
 	
+	\newpage
 	\section{Simulazioni (MATLAB)}
 
 	\subsection{Caso SISO}
@@ -416,7 +417,6 @@
 	Dopo aver sperimentato diversi filtri prototipo per il banco e ottimizzato i parametri, si è osservato che il banco basato su un prototipo a coseno rialzato fornisce un comportamento più regolare e prevedibile rispetto al prototipo \texttt{fir1}, permettendo di scendere fino a circa \SI{-40}{\decibel}.
 	Pertanto, a partire dalle sezioni successive, si adotterà esclusivamente il coseno rialzato con $\beta=0.6$ e \texttt{span} pari a 16.
 	
-	\newpage
 	\subsection{Caso MIMO}
 	Nel caso MIMO il sistema dispone di $L$ altoparlanti e $M$ microfoni.
 	Ogni microfono capta la somma dei contributi di tutti gli altoparlanti, ciascuno filtrato dalla rispettiva RIR.
@@ -672,7 +672,7 @@
 				grid=both,
 				grid style={gray!20},
 				width=0.9\textwidth,
-				height=0.525\textwidth,
+				height=0.45\textwidth,
 				legend pos=south west,
 				legend cell align=left,
 				tick align=inside,      
@@ -720,7 +720,7 @@
 				grid=both,
 				grid style={gray!20},
 				width=0.9\textwidth,
-				height=0.525\textwidth,
+				height=0.45\textwidth,
 				legend pos=south west,
 				legend cell align=left,
 				tick align=inside,      
@@ -775,10 +775,12 @@
 	
 	Si evidenzia quindi la natura di compromesso della scelta di $K$: valori piccoli, come i \SI{8}{\milli\second} adottati in letteratura, garantiscono floor e convergenza migliori ma descrivono la stanza in modo incompleto, trascurando la coda riverberante; valori maggiori catturano una porzione più realistica della \ac{rir}, al prezzo di un floor più elevato e di un tempo di calcolo sensibilmente maggiore.
 	
+	\newpage
 	\section{Implementazione real time}
+	Conclusa la fase di simulazione, l'algoritmo è stato riscritto in C++ come plugin per la piattaforma real time NU-Tech \cite{nutech}, mantenendo la stessa struttura del codice MATLAB.
+	In questa sezione si descrivono il setup sperimentale e le prove condotte in laboratorio.
+
 	\subsection{Setup}
-	
-	
 	Le prove sperimentali sono state condotte nella camera semianecoica “E. Mattei” (Audio DSP Lab). 
 	La strumentazione è di seguito riportata:
 	\begin{itemize}
@@ -795,7 +797,7 @@
 	\begin{figure}[H]
 		\centering
 		\input{diagrams/setup_misure}
-		\caption{prova}
+		\caption{Disposizione nello spazio della strumentazione: i due microfoni e i due altoparlanti occupano i vertici del rettangolo di base $a$ e lato $d$.}
 		\label{fig:setup_misure}
 	\end{figure}
 	
@@ -822,7 +824,7 @@
 	In NU-Tech sono state costruite due configutazioni distinte, salvate come file di setup \texttt{xml}.
 	
 	La prima, riportata in Figura \ref{fig:setup_misurazione} serve alla misura della RIR di riferimento: un blocco \texttt{FileRead} riproduce lo sweep di eccitazione verso l'altoparlante, mentre un blocco FileWrite registra il segnale microfonico su file.
-	A seguire, il segnale ottenuto viene processato in frequenza per ricavare la risposta impulsiva. 
+	A seguire, il segnale ottenuto viene processato in frequenza per ricavare la risposta impulsiva.
 		
 	\begin{figure}[H]
 		\centering
@@ -887,7 +889,7 @@
 	
 	\newpage
 
-	\subsection{Latenza e dimensionamento dei buffer}
+	\subsection{Latenza e dimensionamento dei buffer}\label{ssec:latenza}
 	La prova 1 non ha prodotto una stima valida. 
 	Il motivo non è algoritmico ma di sistema, e riguarda la latenza della catena audio.
 
@@ -926,17 +928,18 @@
 	Nelle prove 2 e 3, invece, il centinaio di tap residui è sufficiente in camera semianecoica, dove il campo è dominato dal suono diretto e dalle prime riflessioni.
 
 	La dimensione del buffer determina inoltre il carico di calcolo: buffer lunghi comportan più latenza ma meno lavoro per la CPU, perché l'elaborazione viene richiamata poche volte al secondo; buffer corti riducono la latenza ma moltiplicano le chiamate, e il carico cresce.
-	Lavorando a 16 campioni il margine di CPU è quindi minimo, e la lunghezza delle \ac{rir} stimate è stata dimensionata di conseguenza.
+	Lavorando a 16 campioni il margine di CPU è quindi minimno, e la lunghezza delle \ac{rir} stimate è stata dimensionata di conseguenza.
 	Nel caso \ac{siso} il canale singolo richiede meno calcoli e ha permesso una \ac{rir} di 512 campioni; nel caso \ac{mimo} 2x2, con quattro percorsi da stimare, 512 campioni non erano sostenibili dalla CPU e 256 non bastavano a contenere ritardo e risposta: si è adottato il compromesso di 350 campioni.
 	
 	\newpage
 
 	\subsection{Risultati}
+	\subsubsection{RIR nel tempo}
 	Le Figure \ref{fig:rir_time_1x1_lab} e \ref{fig:rir_time_2x2_lab} riportano il confronto nel tempo tra le \ac{rir} misurate via sweep e quelle stimate dall'algoritmo, troncate alla stessa lunghezza e normalizzate al rispettivo massimo.
 
 	Un primo riscontro della bontà delle stime è dato dai ritardi. 
 	
-	Nella ptova 2 il picco al campione 287 corrisponde alla stessa latenza più i 71 campioni dei \SI{55}{\centi\meter}. 
+	Nella prova 2 il picco al campione 287 corrisponde alla stessa latenza più i 71 campioni dei \SI{55}{\centi\meter}. 
 
 	\begin{figure}[H]
 		\centering
@@ -953,8 +956,8 @@
 				grid=both,
 				grid style={gray!20},
 				width=0.9\textwidth,
-				height=0.525\textwidth,
-				legend pos=south east,
+				height=0.4\textwidth,
+				legend pos=north east,
 				legend cell align=left,
 				tick align=inside,
 				no markers,
@@ -978,7 +981,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 1 -- L1},
+					title={M1 -- L1},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Samples},
 					ylabel={Amplitude},
@@ -989,8 +992,8 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
-					legend pos=north east,
+					height=0.6\textwidth,
+					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
 					no markers,
@@ -1008,7 +1011,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 1 -- L2},
+					title={M1 -- L2},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Samples},
 					ylabel={Amplitude},
@@ -1019,8 +1022,8 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
-					legend pos=north east,
+					height=0.6\textwidth,
+					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
 					no markers,
@@ -1038,7 +1041,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 2 -- L1},
+					title={M2 -- L1},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Samples},
 					ylabel={Amplitude},
@@ -1049,8 +1052,8 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
-					legend pos=north east,
+					height=0.6\textwidth,
+					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
 					no markers,
@@ -1068,7 +1071,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 2 -- L2},
+					title={M2 -- L2},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Samples},
 					ylabel={Amplitude},
@@ -1079,8 +1082,8 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
-					legend pos=north east,
+					height=0.6\textwidth,
+					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
 					no markers,
@@ -1096,9 +1099,77 @@
 		\caption{Confronto nel tempo tra \ac{rir} misurate e stimate, prova 3 (2x2).}
 		\label{fig:rir_time_2x2_lab}
 	\end{figure}
-
-	\newpage
 	
+	La Figura \ref{fig:rir_amp_2x2_lab} mostra le \ac{rir} misurate della prova 3 senza normalizzazione: i percorsi incrociati giungono ai microfoni con un picco circa settre volte inferiore a quello dei diretti, per la maggiore distanza percorsa e per il fuori asse di microfoni e altoparlanti.
+	
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={M1},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.7\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[matlaborange, line width=1.1pt] table [x=n, y=mic1_L1] {plots/rir_amp_2x2_350.dat};
+					\addlegendentry{L1 (diretto)}
+					\addplot[matlabblue, line width=1.1pt] table [x=n, y=mic1_L2] {plots/rir_amp_2x2_350.dat};
+					\addlegendentry{L2 (incrociato)}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={M2},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.7\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[matlaborange, line width=1.1pt] table [x=n, y=mic2_L2] {plots/rir_amp_2x2_350.dat};
+					\addlegendentry{L2 (diretto)}
+					\addplot[matlabblue, line width=1.1pt] table [x=n, y=mic2_L1] {plots/rir_amp_2x2_350.dat};
+					\addlegendentry{L1 (incrociato)}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\caption{\ac{rir} misurate della prova 3 senza normalizzazione: per ciascun microfono, percorso diretto e incrociato.}
+		\label{fig:rir_amp_2x2_lab}
+	\end{figure}
+
+	\subsubsection{RIR in frequenza}
+	Nel caso \ac{siso} (Figura \ref{fig:rir_freq_1x1_lab}) la stima segue la misura fino a circa \SI{18}{\kilo\hertz}, con scostamenti compresi tra 1 e 2 \si{\decibel}. 
+	Oltre tale limite la stima crolla mentre la misura resta pressoché piatta, come atteso in camera semianecoica: i segnali di riferimento usati per l'adattamento non contengono praticamente energia sopra i \SI{18}{\kilo\hertz}, e in quella regione il filtro non riceve informazione con cui adattarsi. Il confronto ad alta frequenza non è quindi indicativo delle prestazioni dell'algoritmo.
 
 	\begin{figure}[H]
 		\centering
@@ -1117,7 +1188,7 @@
 				grid=both,
 				grid style={gray!20},
 				width=0.9\textwidth,
-				height=0.525\textwidth,
+				height=0.6\textwidth,
 				legend pos=south west,
 				legend cell align=left,
 				tick align=inside,
@@ -1130,11 +1201,12 @@
 				\addlegendentry{Estimated RIR}
 			\end{axis}
 		\end{tikzpicture}
-		\caption{text}
+		\caption{Confronto in frequenza tra \ac{rir} misurata e stimata, prova 2 (1x1).}
 		\label{fig:rir_freq_1x1_lab}
 	\end{figure}
 
-	
+	Nel caso \ac{mimo} (Figura \ref{fig:rir_freq_2x2_lab}) il comportamento dipende dal tipo di percorso: i due diretti risultano pressoché sovrapposti alla misura entro lo stesso limite di banda, mentre gli incrociati ne riproducono l'andamento con maggiore varianza.
+	Questi ultimi giungono al microfono con ampiezza circa sette volte inferiore a quella dei diretti (Figura \ref{fig:rir_amp_2x2_lab}) e soffrono quindi di un rapporto segnale rumore peggiore.
 
 	\begin{figure}[H]
 		\centering
@@ -1142,7 +1214,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 1 -- L1},
+					title={M1 -- L1},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Frequency (Hz)},
 					ylabel={Magnitude (dB)},
@@ -1155,7 +1227,7 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
+					height=0.7\textwidth,
 					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
@@ -1174,7 +1246,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 1 -- L2},
+					title={M1 -- L2},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Frequency (Hz)},
 					ylabel={Magnitude (dB)},
@@ -1187,7 +1259,7 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
+					height=0.7\textwidth,
 					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
@@ -1206,7 +1278,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 2 -- L1},
+					title={M2 -- L1},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Frequency (Hz)},
 					ylabel={Magnitude (dB)},
@@ -1219,7 +1291,7 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
+					height=0.7\textwidth,
 					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
@@ -1238,7 +1310,7 @@
 			\centering
 			\begin{tikzpicture}
 				\begin{axis}[
-					title={Mic 2 -- L2},
+					title={M2 -- L2},
 					title style={font=\sffamily\bfseries\small},
 					xlabel={Frequency (Hz)},
 					ylabel={Magnitude (dB)},
@@ -1251,7 +1323,7 @@
 					grid=both,
 					grid style={gray!20},
 					width=\textwidth,
-					height=0.75\textwidth,
+					height=0.7\textwidth,
 					legend pos=south west,
 					legend cell align=left,
 					tick align=inside,
@@ -1265,10 +1337,30 @@
 				\end{axis}
 			\end{tikzpicture}
 		\end{subfigure}
-		\caption{text}
+		\caption{Confronto in frequenza tra \ac{rir} misurate e stimate, prova 3 (2x2).}
 		\label{fig:rir_freq_2x2_lab}
 	\end{figure}
+	
+	All'estremo opposto della banda, soto il centinaio di \si{\hertz}, entrambe le curve calano e diventano irregolari: il taglio inferiore degli altoparlanti si colloca attorno ai \SI{66}{\hertz} \cite{genelec8020a} e finestre di 512 e 350 campioni limitano la risoluzione in frequenza a circa \SI{100}{\hertz}, per cui in quella regione il confronto è poco affidabile.
 
+	\newpage
+	\section{Conclusioni}
+	Il lavoro ha percorso l'intero arco dell'algoritmo \ac{imsaf}, dallo studio teorico alla verifica sperimentale.
+	Le simulazioni MATLAB ne hanno confermato il comportamento atteso: la struttura a sottobande accelera la convergenza rispetto al riferimento \ac{nlms}, con un ottimo per $I = 8$, e le tecniche di decorrelazione rendono trattabile il caso \ac{mimo}, pur con il degrado all'aumentare del numero di altoparlanti.
+
+	L'implementazione in C++ su NU-Tech ha messo l'algoritmo di fronte ai vincoli che in simulazione non esistono, la latenza del sistema audio e il carico di CPU, che sono diventati i fattori dimensionanti dei buffer e della lunghezza dei filtri.
+	Nelle prove in camera semianecoica le \ac{rir} stimate coincidono con le misure di riferimento sia nei ritardi, entro pochi campioni su tutti i percorsi, sia in frequenza, con scostamenti di 1 o 2 \si{\decibel} nella banda eccitata.
+	L'algoritmo si conferma quindi uno stimatore di \ac{rir} efficace anche in condizioni reali, purché latenza e risorse di calcolo vengano dimensionate con cura.
+
+	\section{Sviluppi futuri}
+	L'attività svolta lascia aperti alcuni sviluppi naturali, sia sul fronte sperimentale sia su quello implementativo.
+
+	Il primo riguarda il tracking vero e proprio.
+	Le prove condotte sono statiche, mentre l'algoritmo nasce per inseguire risposte tempo varianti: sarebbe interessante modificare la geometria a stima avviata, dopo un intervallo di tempo fissato, ad esempio spostando un microfono o introducendo un ostacolo, e misurare il tempo di riconvergenza.
+
+	Il secondo riguarda il banco filtri.
+	L'implementazione attuale, con modulazione complessa e filtraggio ripetuti per ciascun ramo, è poco efficiente: la rappresentazione polifase del banco DFT permetterebbe di ottenere lo stesso risultato con un costo di calcolo sensibilmente inferiore.
+	Il margine di CPU così recuperato potrebbe essere speso per filtri più lunghi dei 350 campioni della prova 3, per buffer ancora più corti o per configurazioni con più canali.
 
 	\newpage
 	\bibliographystyle{ieeetr}

@@ -32,4 +32,10 @@ F.~Bettarelli, E.~Ciavattini, A.~Lattanzi, F.~Piazza, S.~Squartini, and
 \newblock EBU Tech. 3324. Multichannel (5.0/5.1) FLAC format. Accessed: July
   2026.
 
+\bibitem{genelec8020a}
+{Genelec Oy}, ``{8020A Active Monitoring System, Data Sheet}.''
+  \url{https://www.genelec.com/previous-models/8020a}, 2005.
+\newblock Free field frequency response 66 Hz - 20 kHz ($\pm$ 2.5 dB).
+  Accessed: July 2026.
+
 \end{thebibliography}
