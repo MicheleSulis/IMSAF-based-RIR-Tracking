@@ -57,11 +57,8 @@
 %%			Ruolo della decorrelazione intra-canale (P) - analisi con rumore colorato
 %%			Segnali stereo e test vari
 %%
-%% Implementazione (C/C++)
+%% Implementazione real time
 %%		Schema NUTS
-%%		Impostazione codice (snippet o semplicemente struttura)
-%%			plugin.cpp
-%%			ecc..
 %%		Risultati (più RIR Tutte le prove varie)
 %%			Grafici H
 %%
@@ -98,7 +95,7 @@
 
 	\begin{figure}[H]
 		\centering
-		\input{figures/mimo_diagram}
+		\input{diagrams/mimo_diagram}
 		\caption{Schema a blocchi del sistema \ac{mimo} implementato: $n$ indica l'indice temporale fullband e $k$ quello in sottobanda (decimato, $n = kD$); $L$, $l$: numero e indice degli altoparlanti; $I$ è il numero di sottobande, $D$ il fattore di decimazione, $f_s$ la frequenza di campionamento e $\alpha_i$ la profondità della modulazione di fase della sottobanda $i$-esima; $\sigma_i$ è la potenza media della sottobanda, $w_i$ il relativo peso di aggiornamento, $\mathbf{a}_i$ il vettore dei coefficienti di predizione lineare e $\underline{\mathbf{u}}_i$ il segnale di ingresso sbiancato. Le tacche indicano la molteplicità dei collegamenti.}
 		\label{fig:mimo_diagram}
 	\end{figure}
@@ -779,8 +776,257 @@
 	
 	Si evidenzia quindi la natura di compromesso della scelta di $K$: valori piccoli, come i \SI{8}{\milli\second} adottati in letteratura, garantiscono floor e convergenza migliori ma descrivono la stanza in modo incompleto, trascurando la coda riverberante; valori maggiori catturano una porzione più realistica della \ac{rir}, al prezzo di un floor più elevato e di un tempo di calcolo sensibilmente maggiore.
 	
-	\section{Implementazione C++}
+	\section{Implementazione real time}
+	\subsection{NU-Tech}
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=\textwidth]{diagrams/setup_1x1_ASIO}
+		\caption{text}
+	\end{figure}
 	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{diagrams/setup_2x2_ASIO}
+	\caption{text}
+	\end{figure}
+	
+	\subsection{Setup}
+	
+	Il materiale è 
+	Casse Genelec 8020A x2
+	Microfono Beringer B-5 x2
+	Scheda audio focusrite Scarlett 2i2.
+	
+	
+	Sono state svolte, tutte in camera Semianecoica “E. Mattei” (Audio DSP Lab), tre prove in tre configurazioni diverse, inizialmente riportate con lo schema seguente
+	
+	cassa sx e microfono sx sullo stesso asse a distanza 153 cm. cassa dx e microfono dx sullo stesso asse a distanza 143 cm. la distanza tra i due assi è di 94 cm.
+	
+	La seconda prova è stata svolta con i seguenti parametri 
+	sempre cassa e microfono sullo stesso asse.
+	distanza tra gli assi 50cm
+	distanza tra cassa e microfono 55cm in entrambi i casi
+	
+	La terza prova è stata svolta 
+	sempre cassa e microfono sullo stesso asse.
+	distanza tra gli assi 50cm
+	distanza tra cassa e microfono 25cm in entrambi i casi
+	
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_front_large}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_side_large}
+		\end{subfigure}
+		\label{key}
+		\caption{text}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_front_small}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_side_small}
+		\end{subfigure}
+		\label{key}
+		\caption{text}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_front_tiny}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{images/2x2_side_tiny}
+		\end{subfigure}
+		\label{key}
+		\caption{text}
+	\end{figure}
+
+	\subsection{Risultati}
+
+	\begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Frequency Response Comparison (1x1)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Frequency (Hz)},
+				ylabel={Magnitude (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				x tick label style={/pgf/number format/1000 sep={}},
+				xmin=0, xmax=22050,
+				scaled x ticks=false,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.525\textwidth,
+				legend pos=south west,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=1.1pt] table [x=f, y=misurata] {plots/rir_freq_1x1_512.dat};
+				\addlegendentry{Measured RIR}
+				\addplot[matlabblue, line width=0.6pt] table [x=f, y=stimata] {plots/rir_freq_1x1_512.dat};
+				\addlegendentry{Estimated RIR}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{text}
+		\label{fig:rir_freq_1x1_lab}
+	\end{figure}
+
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 1 -- L1},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Frequency (Hz)},
+					ylabel={Magnitude (dB)},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					x tick label style={/pgf/number format/1000 sep={}},
+					xmin=0, xmax=22050,
+					scaled x ticks=false,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=f, y=mic1_L1_mis] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=f, y=mic1_L1_stima] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 1 -- L2},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Frequency (Hz)},
+					ylabel={Magnitude (dB)},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					x tick label style={/pgf/number format/1000 sep={}},
+					xmin=0, xmax=22050,
+					scaled x ticks=false,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=f, y=mic1_L2_mis] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=f, y=mic1_L2_stima] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 2 -- L1},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Frequency (Hz)},
+					ylabel={Magnitude (dB)},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					x tick label style={/pgf/number format/1000 sep={}},
+					xmin=0, xmax=22050,
+					scaled x ticks=false,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=f, y=mic2_L1_mis] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=f, y=mic2_L1_stima] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 2 -- L2},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Frequency (Hz)},
+					ylabel={Magnitude (dB)},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					x tick label style={/pgf/number format/1000 sep={}},
+					xmin=0, xmax=22050,
+					scaled x ticks=false,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=south west,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=f, y=mic2_L2_mis] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=f, y=mic2_L2_stima] {plots/rir_freq_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\caption{text}
+		\label{fig:rir_freq_2x2_lab}
+	\end{figure}
+
+
 	\newpage
 	\bibliographystyle{ieeetr}
 	\bibliography{references/refs}
