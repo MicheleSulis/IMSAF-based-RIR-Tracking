@@ -253,7 +253,7 @@ for k=1:K_len
         end
         % Calcolo dell'errore
         y_ki = squeeze(y_subband(k, i, :)); % Estrazione del vettore Mx1
-        if M==1, y_ki = y_ki'; end
+        if M==1, y_ki = transpose(y_ki); end
         H_hat = reshape(H_subband(i,:,:), [M, L*Ki]); % Estrazione della matrice MxL*Ki
         e_ki = y_ki - H_hat * s_ij; % Errore nella sottobanda i-esima
         norm_u = norm(u_ij)^2;
