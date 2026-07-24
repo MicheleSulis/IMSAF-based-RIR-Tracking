@@ -79,8 +79,7 @@
 	Si parte da una configurazione \ac{siso} (un altoparlante, un microfono) per validare il banco filtri e la ricostruzione della RIR, confrontando diverse scelte di filtro prototipo.
 	Si estende poi al caso \ac{mimo} (più altoparlanti, più microfoni), affrontando il problema dell'\emph{identificabilità} dovuto alla correlazione tra i canali di eccitazione e le tecniche di decorrelazione necessarie a una stima accurata.
 	
-	Infine, l'algoritmo validato in simulazione viene implementato in C++ come plugin per la piattaforma real-time NU-Tech \cite{nutech}.
-	Il passaggio dall'elaborazione offline di MATLAB a quella a frame in tempo reale richiede una riorganizzazione dell'algoritmo: gestione della continuità tra frame consecutivi tramite buffer di overlap e indici temporali globali, buffer circolari per gli stati dei filtri, e stima ricorsiva delle grandezze che in simulazione erano calcolate sull'intero segnale.
+	L'algoritmo validato in simulazione viene implementato in C++ come plugin per la piattaforma real-time NU-Tech \cite{nutech} e testato real-time in laboratorio.
 
 	\section{IMSAF based RIR tracking}
 	L'obiettivo di questo lavoro è implementare un algoritmo di tracciamento della \ac{rir} ispirato a \cite{11464373}, scorporandolo dall'applicazione \ac{sfc} in cui è presentato in letteratura.
@@ -777,40 +776,69 @@
 	Si evidenzia quindi la natura di compromesso della scelta di $K$: valori piccoli, come i \SI{8}{\milli\second} adottati in letteratura, garantiscono floor e convergenza migliori ma descrivono la stanza in modo incompleto, trascurando la coda riverberante; valori maggiori catturano una porzione più realistica della \ac{rir}, al prezzo di un floor più elevato e di un tempo di calcolo sensibilmente maggiore.
 	
 	\section{Implementazione real time}
-	\subsection{NU-Tech}
-	\begin{figure}[H]
-		\centering
-		\includegraphics[width=\textwidth]{diagrams/setup_1x1_ASIO}
-		\caption{text}
-	\end{figure}
-	
-	\begin{figure}[H]
-	\centering
-	\includegraphics[width=\textwidth]{diagrams/setup_2x2_ASIO}
-	\caption{text}
-	\end{figure}
-	
 	\subsection{Setup}
 	
-	Il materiale è 
-	Casse Genelec 8020A x2
-	Microfono Beringer B-5 x2
-	Scheda audio focusrite Scarlett 2i2.
 	
+	Le prove sperimentali sono state condotte nella camera semianecoica “E. Mattei” (Audio DSP Lab). 
+	La strumentazione è di seguito riportata:
+	\begin{itemize}
+		\item 2 casse Genelec 8020A;
+		\item  2 microfoni a condensatore Behringer B-5;
+		\item scheda audio Focusrite Scarlet 2i2;
+		\item PC con NU-Tech.
+	\end{itemize}
 	
-	Sono state svolte, tutte in camera Semianecoica “E. Mattei” (Audio DSP Lab), tre prove in tre configurazioni diverse, inizialmente riportate con lo schema seguente
+	Tutto il sistema lavora a $\SI{44.1}{\kilo\hertz}$ con una quantizzazione a 32 bit.
 	
-	cassa sx e microfono sx sullo stesso asse a distanza 153 cm. cassa dx e microfono dx sullo stesso asse a distanza 143 cm. la distanza tra i due assi è di 94 cm.
+	La disposizione geometrica è quella dello schema in Figura \ref{fig:setup_misure}: ciascun microfono è posto sull'asse dell'altoparlante corrispondente, rivolto verso di esso, a distanza $d$; gli assi delle due coppie sono paralleli e distano tra di loro $a$.
 	
-	La seconda prova è stata svolta con i seguenti parametri 
-	sempre cassa e microfono sullo stesso asse.
-	distanza tra gli assi 50cm
-	distanza tra cassa e microfono 55cm in entrambi i casi
+	\begin{figure}[H]
+		\centering
+		\input{diagrams/setup_misure}
+		\caption{prova}
+		\label{fig:setup_misure}
+	\end{figure}
 	
-	La terza prova è stata svolta 
-	sempre cassa e microfono sullo stesso asse.
-	distanza tra gli assi 50cm
-	distanza tra cassa e microfono 25cm in entrambi i casi
+	Si sono realizzate tre prove in tre configurazioni diverse:
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\setlength{\tabcolsep}{10pt}
+		\begin{tabular}{|c|c|c|c|c|}
+			\hline
+			Prova \# & Configurazione & $d$ & $a$ & Fotografia \\
+			\hline
+			1 & MIMO 2x2 & \SI{153}{\centi\meter} (sx), \SI{143}{\centi\meter} (dx) & \SI{94}{\centi\meter} & Fig. \ref{fig:setup_prova1} \\
+			\hline
+			2 & SISO 1x1 & \SI{55}{\centi\meter} & -- & Fig. \ref{fig:setup_prova2} \\
+			\hline
+			3 & MIMO 2x2 & \SI{25}{\centi\meter} & \SI{50}{\centi\meter} & Fig. \ref{fig:setup_prova3} \\
+			\hline
+		\end{tabular}
+		\caption{Configurazioni delle tre prove sperimentali.}
+		\label{tab:prove_lab}
+	\end{table}
+	
+	In NU-Tech sono state costruite due configutazioni distinte, salvate come file di setup \texttt{xml}.
+	
+	La prima, riportata in Figura \ref{fig:setup_misurazione} serve alla misura della RIR di riferimento: un blocco \texttt{FileRead} riproduce lo sweep di eccitazione verso l'altoparlante, mentre un blocco FileWrite registra il segnale microfonico su file.
+	A seguire, il segnale ottenuto viene processato in frequenza per ricavare la risposta impulsiva. 
+		
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.9\textwidth]{diagrams/setup_misurazione}
+		\caption{Setup NU-Tech per la misura della risposta impulsiva.}
+		\label{fig:setup_misurazione}
+	\end{figure}
+	
+	La seconda configurazione è quella della stima adattativa, impiegata sia nella variante 1x1 sia nella 2x2; essendo le due strutturalmente identiche, si riporta direttamente la 2x2 (Figura \ref{fig:setup_2x2_ASIO}). Due blocchi \texttt{FileRead} riproducono gli stessi segnali di riferimento usati in simulazione, il plugin \texttt{IMSAF} li riceve insieme ai segnali microfonici, esegue la decorrelazione e l’adattamento in sottobande, e al momento dell’arresto salva su file le RIR stimate in sequenza. In parallelo, due \texttt{FileWrite} registrano i segnali dei microfoni a scopo diagnostico.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.9\textwidth]{diagrams/setup_2x2_ASIO}
+		\caption{Setup NU-Tech per la stima MIMO con 2 altoparlanti e 2 microfoni.}
+		\label{fig:setup_2x2_ASIO}
+	\end{figure}
 	
 	\begin{figure}[H]
 		\centering
@@ -823,8 +851,8 @@
 			\centering
 			\includegraphics[width=\textwidth]{images/2x2_side_large}
 		\end{subfigure}
-		\label{key}
-		\caption{text}
+		\caption{Setup della prova 1 ($d = \SI{153}{\centi\meter}$ sx, $\SI{143}{\centi\meter}$ dx, $a = \SI{94}{\centi\meter}$): vista frontale e laterale.}
+		\label{fig:setup_prova1}
 	\end{figure}
 	
 	\begin{figure}[H]
@@ -838,8 +866,8 @@
 			\centering
 			\includegraphics[width=\textwidth]{images/2x2_side_small}
 		\end{subfigure}
-		\label{key}
-		\caption{text}
+		\caption{Setup della prova 2 ($d = \SI{55}{\centi\meter}$): vista frontale e laterale.}
+		\label{fig:setup_prova2}
 	\end{figure}
 	
 	\begin{figure}[H]
@@ -853,11 +881,224 @@
 			\centering
 			\includegraphics[width=\textwidth]{images/2x2_side_tiny}
 		\end{subfigure}
-		\label{key}
-		\caption{text}
+		\caption{Setup della prova 3 ($d = \SI{25}{\centi\meter}$, $a = \SI{50}{\centi\meter}$): vista frontale e laterale.}
+		\label{fig:setup_prova3}
 	\end{figure}
+	
+	\newpage
+
+	\subsection{Latenza e dimensionamento dei buffer}
+	La prova 1 non ha prodotto una stima valida. 
+	Il motivo non è algoritmico ma di sistema, e riguarda la latenza della catena audio.
+
+	Il filtro adattativo non identifica la sola risposta della stanza, ma l'intero percorso tra il segnale di riferimento e quello del microfono, che rientra nel programma solo dopo aver attraversato buffer di uscita, convertitori, aria e buffer di ingresso. 
+	La stima rappresenta il ritardo introdotto dalla catena con una sequenza iniziale di coefficienti nulli, che occupano la finestra del filtro senza portare informazione. 
+	La risposta acustica deve trovare posto nei tap che restano.
+
+	Il ritardo ha due componenti, una scala con la dimensione del buffer: ogni blocco deve essere riempito per intero prima di essere riprodotto, e acquisito per intero prima di essere consegnato all'elaborazione, quindi il doppio buffering costa due buffer di ritardo.
+	L'altra è fissa, e comprende i filtri di conversione di ADC e DAC e le latenze delle periferiche (USB), per un totale dell'ordine di qualche millisecondo. 
+	Con il buffer ASIO, il massimo consentito di 1024 campioni fa sì che domini la prima componente e il ritardo complessivo supera i 2000 campioni; al minimo di 16 campioni il doppio buffering vale appena 32 campioni e resta la parte fissa, per un ritardo complessivo di circa 220 campioni, ovvero circa \SI{5}{\milli\second}. 
+	
+	Il valore è ricavato dalle misure: sottraendo il tempo di volo noto alla posizione del picco si ottengono 221 campioni nella prova 3 (Figura \ref{fig:rir_time_2x2_lab}) e 216 nella prova 2 (Figura \ref{fig:rir_time_1x1_lab}), due riscontri indipendenti della stessa latenza. 
+	
+	La Tabella \ref{tab:latenza_rt} riassume le tre situazioni incontrate.
+
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabular}{|c|c|c|c|}
+			\hline
+			Configurazione & Ritardo [campioni] & Tap utili (su 350) & Esito \\
+			\hline
+			buffer 1024 & $> 2000$ & nessuno & stima impossibile \\
+			\hline
+			buffer 16, $d = \SI{1.5}{\meter}$ & $\approx 410$ & nessuno & picco fuori finestra \\
+			\hline
+			buffer 16, $d = 25 \div \SI{55}{\centi\meter}$ & $\approx 250 \div 290$ & $\approx 100$ & stima corretta \\
+			\hline
+		\end{tabular}
+		\caption{Ritardo complessivo e margine residuo del filtro nelle configurazioni provate.}
+		\label{tab:latenza_rt}
+	\end{table}
+
+	Nei primi due casi il picco della risposta cade oltre la finestra di osservazione: riferimento e segnale microfonico appaiono scorrelati e la stima converge a rumore.
+	È quanto accaduto nella prova 1, poi abbandonata in favore delle configurazioni ravvicinate. 
+	Nelle prove 2 e 3, invece, il centinaio di tap residui è sufficiente in camera semianecoica, dove il campo è dominato dal suono diretto e dalle prime riflessioni.
+
+	La dimensione del buffer determina inoltre il carico di calcolo: buffer lunghi comportan più latenza ma meno lavoro per la CPU, perché l'elaborazione viene richiamata poche volte al secondo; buffer corti riducono la latenza ma moltiplicano le chiamate, e il carico cresce.
+	Lavorando a 16 campioni il margine di CPU è quindi minimo, e la lunghezza delle \ac{rir} stimate è stata dimensionata di conseguenza.
+	Nel caso \ac{siso} il canale singolo richiede meno calcoli e ha permesso una \ac{rir} di 512 campioni; nel caso \ac{mimo} 2x2, con quattro percorsi da stimare, 512 campioni non erano sostenibili dalla CPU e 256 non bastavano a contenere ritardo e risposta: si è adottato il compromesso di 350 campioni.
+	
+	\newpage
 
 	\subsection{Risultati}
+	Le Figure \ref{fig:rir_time_1x1_lab} e \ref{fig:rir_time_2x2_lab} riportano il confronto nel tempo tra le \ac{rir} misurate via sweep e quelle stimate dall'algoritmo, troncate alla stessa lunghezza e normalizzate al rispettivo massimo.
+
+	Un primo riscontro della bontà delle stime è dato dai ritardi. 
+	
+	Nella ptova 2 il picco al campione 287 corrisponde alla stessa latenza più i 71 campioni dei \SI{55}{\centi\meter}. 
+
+	\begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Time Comparison (1x1)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Samples},
+				ylabel={Amplitude},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=512,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.525\textwidth,
+				legend pos=south east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=1.1pt] table [x=n, y=misurata] {plots/rir_time_1x1_512.dat};
+				\addlegendentry{Measured RIR}
+				\addplot[matlabblue, line width=0.6pt] table [x=n, y=stimata] {plots/rir_time_1x1_512.dat};
+				\addlegendentry{Estimated RIR}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto nel tempo tra \ac{rir} misurata e stimata, prova 2 (1x1).}
+		\label{fig:rir_time_1x1_lab}
+	\end{figure}
+
+	Nella prova 3 i picchi delle \ac{rir} misurate cadono a 253 e 264 campioni per i percorsi diretti, ovvero la latenza di sistema più i circa 32 campioni di volo dei \SI{25}{\centi\meter}, e a 288 e 294 campioni per gli incrociati, in accordo con la diagonale di circa $\SI{56}{\centi\meter}$.
+
+	\begin{figure}[H]
+		\centering
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 1 -- L1},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=north east,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=n, y=mic1_L1_mis] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=n, y=mic1_L1_stima] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 1 -- L2},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=north east,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=n, y=mic1_L2_mis] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=n, y=mic1_L2_stima] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 2 -- L1},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=north east,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=n, y=mic2_L1_mis] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=n, y=mic2_L1_stima] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\hfill
+		\begin{subfigure}[c]{0.49\textwidth}
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					title={Mic 2 -- L2},
+					title style={font=\sffamily\bfseries\small},
+					xlabel={Samples},
+					ylabel={Amplitude},
+					label style={font=\sffamily\footnotesize},
+					tick label style={font=\sffamily\scriptsize},
+					legend style={font=\sffamily\scriptsize},
+					xmin=0, xmax=350,
+					grid=both,
+					grid style={gray!20},
+					width=\textwidth,
+					height=0.75\textwidth,
+					legend pos=north east,
+					legend cell align=left,
+					tick align=inside,
+					no markers,
+					font=\sffamily
+					]
+					\addplot[black, line width=1.1pt] table [x=n, y=mic2_L2_mis] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Measured}
+					\addplot[matlabblue, line width=0.6pt] table [x=n, y=mic2_L2_stima] {plots/rir_time_2x2_350.dat};
+					\addlegendentry{Estimated}
+				\end{axis}
+			\end{tikzpicture}
+		\end{subfigure}
+		\caption{Confronto nel tempo tra \ac{rir} misurate e stimate, prova 3 (2x2).}
+		\label{fig:rir_time_2x2_lab}
+	\end{figure}
+
+	\newpage
+	
 
 	\begin{figure}[H]
 		\centering
@@ -892,6 +1133,8 @@
 		\caption{text}
 		\label{fig:rir_freq_1x1_lab}
 	\end{figure}
+
+	
 
 	\begin{figure}[H]
 		\centering

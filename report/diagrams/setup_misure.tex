@@ -1,0 +1,50 @@
+% Schema del setup di misura (vista dall'alto): casse, microfoni e distanze.
+% Richiede nel preambolo: \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+% Da includere con: \input{diagrams/setup_misure}
+\begin{tikzpicture}[
+    font=\footnotesize,
+    >={Stealth[length=2.2mm]},
+    dim/.style={<->, thick},
+    guide/.style={black!40, thin},
+    path1/.style={dashed, black!55},
+    path2/.style={densely dotted, black!40},
+    mic/.style={circle, fill=black, inner sep=0pt, minimum size=1.6mm},
+  ]
+
+  \def\axdist{3.4}   % distanza tra gli assi (disegno)
+  \def\spkY{2.6}     % quota del fronte delle casse
+  \def\micY{0}       % quota dei microfoni
+
+  % ============ Casse (rivolte verso il basso) ============
+  \foreach \x/\name in {0/$L_1$, \axdist/$L_2$} {
+    \draw[thick, fill=black!8] (\x-0.18,\spkY+0.35) rectangle (\x+0.18,\spkY+0.75);
+    \draw[thick, fill=black!8] (\x-0.18,\spkY+0.35) -- (\x+0.18,\spkY+0.35)
+      -- (\x+0.42,\spkY) -- (\x-0.42,\spkY) -- cycle;
+    \node[above] at (\x,\spkY+0.75) {\name};
+    \draw[black!50] ([shift={(\x,\spkY)}] -130:0.22) arc[start angle=-130, end angle=-50, radius=0.22];
+    \draw[black!50] ([shift={(\x,\spkY)}] -130:0.38) arc[start angle=-130, end angle=-50, radius=0.38];
+  }
+
+  % ============ Microfoni (capsula rivolta verso il diffusore) ============
+  \foreach \x/\name in {0/$M_1$, \axdist/$M_2$} {
+    \node[mic] at (\x,\micY) {};
+    \draw[thick, line cap=round] (\x,\micY-0.07) -- (\x,\micY-0.38);
+    \node[below] at (\x,\micY-0.40) {\name};
+  }
+
+  % ============ Percorsi diretti e incrociati ============
+  \draw[path1] (0,\spkY) -- (0,\micY+0.09);
+  \draw[path1] (\axdist,\spkY) -- (\axdist,\micY+0.09);
+  \draw[path2] (0,\spkY) -- (\axdist-0.06,\micY+0.07);
+  \draw[path2] (\axdist,\spkY) -- (0.06,\micY+0.07);
+
+  % ============ Quote ============
+  \draw[guide] (-0.45,\spkY) -- (-1.15,\spkY);
+  \draw[guide] (-0.18,\micY) -- (-1.15,\micY);
+  \draw[dim] (-1.0,\spkY) -- node[left] {$d$} (-1.0,\micY);
+
+  \draw[guide] (0,\micY-0.85) -- (0,\micY-1.25);
+  \draw[guide] (\axdist,\micY-0.85) -- (\axdist,\micY-1.25);
+  \draw[dim] (0,\micY-1.1) -- node[below] {$a$} (\axdist,\micY-1.1);
+
+\end{tikzpicture}
