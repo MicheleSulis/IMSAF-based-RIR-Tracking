@@ -496,7 +496,7 @@
 				\addlegendentry{P=2}
 			\end{axis}
 		\end{tikzpicture}
-		\caption{Confronto nel dominio della frequenza tra la RIR reale e le RIR stimate con i due prototipi.}
+		\caption{\ac{nm} al variare dell'ordine di predizione lineare $P$.}
 		\label{fig:nm_p_comparison}
 	\end{figure}
 	
@@ -897,8 +897,8 @@
 	La stima rappresenta il ritardo introdotto dalla catena con una sequenza iniziale di coefficienti nulli, che occupano la finestra del filtro senza portare informazione. 
 	La risposta acustica deve trovare posto nei tap che restano.
 
-	Il ritardo ha due componenti, una scala con la dimensione del buffer: ogni blocco deve essere riempito per intero prima di essere riprodotto, e acquisito per intero prima di essere consegnato all'elaborazione, quindi il doppio buffering costa due buffer di ritardo.
-	L'altra è fissa, e comprende i filtri di conversione di ADC e DAC e le latenze delle periferiche (USB), per un totale dell'ordine di qualche millisecondo. 
+	Il ritardo ha due contributi, uno dei quali scala con la dimensione del buffer: ogni blocco deve essere riempito per intero prima di essere riprodotto, e acquisito per intero prima di essere consegnato all'elaborazione, quindi il doppio buffering costa due buffer di ritardo.
+	L'altro è fisso, e comprende i filtri di conversione di ADC e DAC e le latenze delle periferiche (USB), per un totale dell'ordine di qualche millisecondo. 
 	Con il buffer ASIO, il massimo consentito di 1024 campioni fa sì che domini la prima componente e il ritardo complessivo supera i 2000 campioni; al minimo di 16 campioni il doppio buffering vale appena 32 campioni e resta la parte fissa, per un ritardo complessivo di circa 220 campioni, ovvero circa \SI{5}{\milli\second}. 
 	
 	Il valore è ricavato dalle misure: sottraendo il tempo di volo noto alla posizione del picco si ottengono 221 campioni nella prova 3 (Figura \ref{fig:rir_time_2x2_lab}) e 216 nella prova 2 (Figura \ref{fig:rir_time_1x1_lab}), due riscontri indipendenti della stessa latenza. 
@@ -927,8 +927,7 @@
 	È quanto accaduto nella prova 1, poi abbandonata in favore delle configurazioni ravvicinate. 
 	Nelle prove 2 e 3, invece, il centinaio di tap residui è sufficiente in camera semianecoica, dove il campo è dominato dal suono diretto e dalle prime riflessioni.
 
-	La dimensione del buffer determina inoltre il carico di calcolo: buffer lunghi comportan più latenza ma meno lavoro per la CPU, perché l'elaborazione viene richiamata poche volte al secondo; buffer corti riducono la latenza ma moltiplicano le chiamate, e il carico cresce.
-	Lavorando a 16 campioni il margine di CPU è quindi minimno, e la lunghezza delle \ac{rir} stimate è stata dimensionata di conseguenza.
+	La dimensione del buffer determina inoltre il carico di calcolo: buffer lunghi implicano più latenza ma meno lavoro per la CPU, perché l'elaborazione viene richiamata poche volte al secondo; buffer corti riducono la latenza ma moltiplicano le chiamate, e il carico cresce.
 	Nel caso \ac{siso} il canale singolo richiede meno calcoli e ha permesso una \ac{rir} di 512 campioni; nel caso \ac{mimo} 2x2, con quattro percorsi da stimare, 512 campioni non erano sostenibili dalla CPU e 256 non bastavano a contenere ritardo e risposta: si è adottato il compromesso di 350 campioni.
 	
 	\newpage
@@ -1348,7 +1347,7 @@
 	Il lavoro ha percorso l'intero arco dell'algoritmo \ac{imsaf}, dallo studio teorico alla verifica sperimentale.
 	Le simulazioni MATLAB ne hanno confermato il comportamento atteso: la struttura a sottobande accelera la convergenza rispetto al riferimento \ac{nlms}, con un ottimo per $I = 8$, e le tecniche di decorrelazione rendono trattabile il caso \ac{mimo}, pur con il degrado all'aumentare del numero di altoparlanti.
 
-	L'implementazione in C++ su NU-Tech ha messo l'algoritmo di fronte ai vincoli che in simulazione non esistono, la latenza del sistema audio e il carico di CPU, che sono diventati i fattori dimensionanti dei buffer e della lunghezza dei filtri.
+	L'implementazione in C++ su NU-Tech ha messo l'algoritmo di fronte ai vincoli che in simulazione non esistono, quali la latenza del sistema audio e il carico di CPU, che sono diventati i fattori dimensionanti dei buffer e della lunghezza dei filtri.
 	Nelle prove in camera semianecoica le \ac{rir} stimate coincidono con le misure di riferimento sia nei ritardi, entro pochi campioni su tutti i percorsi, sia in frequenza, con scostamenti di 1 o 2 \si{\decibel} nella banda eccitata.
 	L'algoritmo si conferma quindi uno stimatore di \ac{rir} efficace anche in condizioni reali, purché latenza e risorse di calcolo vengano dimensionate con cura.
 

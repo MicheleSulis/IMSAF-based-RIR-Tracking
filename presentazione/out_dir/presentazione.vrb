@@ -1,0 +1,48 @@
+\frametitle{Validazione SISO: scelta del filtro prototipo}
+\begin{columns}[c, totalwidth=\textwidth]
+    \begin{column}{0.38\textwidth}
+        \begin{itemize}
+            \item Prototipi costruiti per $I=64$ sottobande.
+            \item Assunti entrambi di $1025$ campioni.
+            \item Per il filtro di Kaiser si è posto $\beta = 1$, per il filtro Rcos $\beta = 0.6$ e \texttt{span}~pari a $16$.
+            \item Come ingresso al sistema si è assunto rumore bianco.
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+        \begin{figure}[H]
+		\centering
+        \resizebox{\textwidth}{!}{
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=20,
+				ymax=-5, ymin=-45,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.6\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_kaiser.dat};
+				\addlegendentry{Kaiser prototype}
+				\addplot[matlaborange] table {plots/nm_rcos.dat};
+				\addlegendentry{Rcos prototype}
+			\end{axis}
+		\end{tikzpicture}}
+		\caption{Confronto del NM tra i due prototipi.}
+		\label{fig:nm_prot}
+	\end{figure}
+    \end{column}
+\end{columns}

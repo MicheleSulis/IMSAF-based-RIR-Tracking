@@ -1,41 +1,25 @@
 \begin{thebibliography}{1}
 
 \bibitem{11249060}
-J.~Zhang, J.~Xie, D.~Shi, W.~Zhang, J.~Chen, and J.~Benesty, ``An alternating
-  mode strategy for adaptive sound field control and acoustic path tracking,''
-  in {\em 2025 Asia Pacific Signal and Information Processing Association
-  Annual Summit and Conference (APSIPA ASC)}, pp.~417--422, 2025.
+J.~Zhang, J.~Xie, D.~Shi, W.~Zhang, J.~Chen, and J.~Benesty, ``An alternating mode strategy for adaptive sound field control and acoustic path tracking,'' in {\em 2025 Asia Pacific Signal and Information Processing Association Annual Summit and Conference (APSIPA ASC)}, pp.~417--422, 2025.
 
 \bibitem{11464373}
-J.~Zhang, J.~Xie, D.~Shi, W.~Zhang, J.~Chen, and J.~Benesty,
-  ``Decorrelation-enhanced multiband subband adaptive filtering for rir
-  tracking in sound field control,'' in {\em ICASSP 2026 - 2026 IEEE
-  International Conference on Acoustics, Speech and Signal Processing
-  (ICASSP)}, pp.~15052--15056, 2026.
+J.~Zhang, J.~Xie, D.~Shi, W.~Zhang, J.~Chen, and J.~Benesty, ``Decorrelation-enhanced multiband subband adaptive filtering for rir tracking in sound field control,'' in {\em ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, pp.~15052--15056, 2026.
 
 \bibitem{nutech}
-F.~Bettarelli, E.~Ciavattini, A.~Lattanzi, F.~Piazza, S.~Squartini, and
-  D.~Zallocco, ``{NU-Tech}: Implementing {DSP} algorithms in a plug-in based
-  software platform for real time audio applications,'' in {\em Proc. 118th
-  Convention of the Audio Engineering Society (AES)}, (Barcelona, Spain), May
-  2005.
+F.~Bettarelli, E.~Ciavattini, A.~Lattanzi, F.~Piazza, S.~Squartini, and D.~Zallocco, ``{NU-Tech}: Implementing {DSP} algorithms in a plug-in based software platform for real time audio applications,'' in {\em Proc. 118th Convention of the Audio Engineering Society (AES)}, (Barcelona, Spain), May 2005.
 \newblock Convention Paper 6389.
 
 \bibitem{ebu_sqam_flac}
-{European Broadcasting Union}, ``Sound quality assessment material ({SQAM})
-  audio database.'' \url{https://tech.ebu.ch/publications/sqamcd}, 2008.
+{European Broadcasting Union}, ``Sound quality assessment material ({SQAM}) audio database.'' \url{https://tech.ebu.ch/publications/sqamcd}, 2008.
 \newblock EBU Tech. 3253. Available in FLAC format. Accessed: June 2026.
 
 \bibitem{ebu_tech3324}
-{European Broadcasting Union}, ``Sequences for the evaluation of multichannel
-  audio codecs.'' \url{https://tech.ebu.ch/publications/tech3324_flac}, 2007.
-\newblock EBU Tech. 3324. Multichannel (5.0/5.1) FLAC format. Accessed: July
-  2026.
+{European Broadcasting Union}, ``Sequences for the evaluation of multichannel audio codecs.'' \url{https://tech.ebu.ch/publications/tech3324_flac}, 2007.
+\newblock EBU Tech. 3324. Multichannel (5.0/5.1) FLAC format. Accessed: July 2026.
 
 \bibitem{genelec8020a}
-{Genelec Oy}, ``{8020A Active Monitoring System, Data Sheet}.''
-  \url{https://www.genelec.com/previous-models/8020a}, 2005.
-\newblock Free field frequency response 66 Hz - 20 kHz ($\pm$ 2.5 dB).
-  Accessed: July 2026.
+{Genelec Oy}, ``{8020A Active Monitoring System, Data Sheet}.'' \url{https://www.genelec.com/previous-models/8020a}, 2005.
+\newblock Free field frequency response 66 Hz - 20 kHz ($\pm$ 2.5 dB). Accessed: July 2026.
 
 \end{thebibliography}

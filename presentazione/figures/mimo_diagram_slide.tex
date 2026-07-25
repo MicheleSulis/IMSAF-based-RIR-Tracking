@@ -1,0 +1,81 @@
+\begin{tikzpicture}[
+    font=\tiny,
+    >={Stealth[length=1.8mm]},
+    blk/.style={draw, thick, rounded corners=2pt, fill=white, align=center,
+                minimum height=6.5mm, inner sep=1.2mm},
+    room/.style={blk, fill=orange!15, draw=orange!70!black, font=\bfseries\tiny},
+    imsaf/.style={blk, fill=cyan!10, draw=cyan!70!black},
+    sum/.style={draw, thick, circle, fill=white, inner sep=0pt, minimum size=3.5mm},
+    sig/.style={->, thick},
+    dsh/.style={->, thick, dashed},
+    busN/.style={font=\tiny, text=black!70},
+    group/.style={fill=gray!10, rounded corners=3pt, inner sep=3mm}
+]
+
+  % ================= RIGA 1 (y = 0): DECORRELAZIONE & STANZA =================
+  \node (x) at (-1.3,0) {$\mathbf{x}(n)$};
+  \node[blk] (ana1) at (0.7,0) {Banco Analisi\\DFT ($I, \downarrow D$)};
+  \node[blk] (pmod) at (3.5,0) {Modulazione\\di Fase ($e^{\mathrm{j}\alpha_i}$)};
+  \node[blk] (syn1) at (6.1,0) {Banco Sintesi\\DFT ($I, \uparrow D$)};
+  \node[room] (roomH) at (8.9,0) {Stanza\\$\mathbf{H}(n)$};
+  \coordinate (yend) at (10.6,0);
+
+  % Frecce Riga 1
+  \draw[sig] (x) -- node[busN, below, pos=0.4]{$L$} (ana1);
+  \draw[sig] (ana1) -- node[above]{$\mathbf{x}_i(k)$} (pmod);
+  \draw[sig] (pmod) -- node[above]{$\mathbf{s}_i(k)$} (syn1);
+  \draw[sig] (syn1) -- node[above, pos=0.4]{$\mathbf{s}(n)$} node[busN, below, pos=0.4]{} (roomH);
+  \draw[sig] (roomH) -- node[above, pos=0.5]{$\mathbf{y}(n)$} node[busN, below, pos=0.5]{$M$} (yend);
+
+  % Punti di derivazione (Tap)
+  \coordinate (tapS) at (7.5,0);
+  \fill (tapS) circle (1.2pt);
+
+  % ================= RIGA 2 (y = -1.6): RI-ANALISI =================
+  \node[blk] (ana2) at (7.5,-1.6) {Banco Analisi\\DFT ($I, \downarrow D$)};
+  \node[blk] (ana3) at (9.5,-1.6) {Banco Analisi\\DFT ($I, \downarrow D$)};
+
+  \draw[sig] (tapS) -- (ana2.north);
+  \draw[sig] (roomH.south) -- (ana3.north);
+
+  % ================= RIGA 3 (y = -3.2): NUCLEO IMSAF =================
+  \node[imsaf] (pred) at (3.8,-3.2) {Predizione Lineare $P$\\Sbiancamento $\mathbf{u}_i(k)$};
+  \node[imsaf] (hhat) at (7.5,-3.2) {Filtri Adattativi $\hat{\mathbf{H}}_i(k)$\\[-1pt]{\tiny + Pesi $w_i$}};
+  \node[sum] (sum) at (9.5,-3.2) {};
+
+  % Collegamenti intermedi e ramificazione ortogonale pulita
+  \draw[sig] (ana2.south) -- node[right, pos=0.25]{$\mathbf{s}_i(k)$} (hhat.north);
+  
+  % Ramificazione verso Predizione Lineare (orizzontale poi verticale)
+  \draw[sig] (7.5,-2.3) -| (pred.north);
+  \draw[sig] (pred.east) -- node[above]{$\mathbf{u}_i(k)$} (hhat.west);
+
+  \draw[sig] (ana3.south) -- node[right, pos=0.3]{$\mathbf{y}_i(k)$} (sum.north);
+  \node[font=\tiny] at ($(sum.north)+(0.2, 0.1)$) {$+$};
+
+  \draw[sig] (hhat.east) -- node[above]{$\hat{\mathbf{y}}_i(k)$} (sum.west);
+  \node[font=\tiny] at ($(sum.west)+(-0.2,-0.15)$) {$-$};
+
+  % Ciclo dell'errore (Retroazione sotto i filtri)
+  \draw[sig] (sum.south) -- ++(0,-0.8) -| node[above, pos=0.25]{Errore $\mathbf{e}_i(k)$} (hhat.south);
+
+  % ================= RIGA 4 (y = -4.8): RICOSTRUZIONE & NM =================
+  \node[blk] (rec) at (3.8,-4.8) {Ricostruzione\\Fullband};
+  \node[blk] (nm) at (1.2,-4.8) {Calcolo\\NM};
+
+  % Collegamento dai filtri alla ricostruzione fullband
+  \draw[dsh] (hhat.south west)++(0.8, 0) |- node[above, pos=0.75]{$\hat{\mathbf{H}}_i(k)$} (rec.east);
+  \draw[dsh] (rec.west) -- node[above]{$\hat{\mathbf{H}}(n)$} (nm.east);
+
+  % ================= SFONDI E ETICHETTE DI GRUPPO =================
+  \begin{scope}[on background layer]
+     % Box Decorrelazione
+            \node[group, fit=(ana1)(pmod)(syn1),
+                  label={[font=\tiny\bfseries\color{black!60}]above:Decorrelazione Inter-canale}] {};
+
+            % Box Tracciamento IMSAF
+            \node[group, fill=cyan!5, fit=(ana2)(ana3)(pred)(hhat)(sum),
+                  label={[font=\tiny\bfseries\color{cyan!80!black}, anchor=north west, xshift=2mm, yshift=-1mm]north west:Tracciamento IMSAF in Sottobanda}] {};
+          \end{scope}
+
+\end{tikzpicture}

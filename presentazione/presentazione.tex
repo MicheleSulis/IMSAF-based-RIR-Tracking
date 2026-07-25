@@ -1,0 +1,806 @@
+\documentclass[aspectratio=169,xcolor=dvipsnames]{beamer}
+\usetheme{SimplePlus}
+\usefonttheme[onlymath]{serif}
+\usepackage[italian]{babel}
+\usepackage{comment}
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{inconsolata}
+\usepackage{siunitx}
+\usepackage{tikz}
+\usepackage{nicematrix}
+\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+\usepgfplotslibrary{groupplots}
+\definecolor{matlabblue}{rgb}{0.000,0.447,0.741}
+\definecolor{matlaborange}{rgb}{0.850,0.325,0.098}
+
+\usepackage[acronym, shortcuts]{glossaries}
+\newacronym{rir}{RIR}{Room Impulse Response}
+\newacronym{sfc}{SFC}{Sound Field Control}
+\newacronym{imsaf}{IMSAF}{Improved Multiband-Structured Subband Adaptive Filter}
+\newacronym{mimo}{MIMO}{Multiple-Input Multiple-Output}
+\newacronym{siso}{SISO}{Single-Input Single-Output}
+\newacronym{nlms}{NLMS}{Normalized Least Mean Square}
+\newacronym{nm}{NM}{Normalized Misalignment}
+\newacronym{lfe}{LFE}{Low Frequency Effects}
+
+\title{IMSAF based RIR tracking}
+
+\author{Mauro M. M. Costantino, Michele Sulis \vspace{0.5cm}}
+
+\institute
+{
+    \large Università Politecnica delle Marche\\
+    \vspace{0.3cm}
+    \includegraphics[width=2cm]{Logo_Università_Politecnica_delle_Marche.png}
+}
+\date{} % Date, can be changed to a custom date
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{Introduzione: Tracciamento RIR e Approccio IMSAF}
+
+    \begin{columns}[T, totalwidth=\textwidth]
+
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Contesto Applicativo}
+                \begin{itemize}
+                    \item \textbf{Room Impulse Response (RIR)}
+                    \item \textbf{Settori chiave:}
+                        \begin{itemize}
+                            \item Sound Field Control (SFC)
+                            \item Acoustic Echo Cancellation (AEC)
+                            \item Active Noise Control (ANC)
+                        \end{itemize}
+                \end{itemize}
+            \end{block}
+        \end{column}
+
+        \begin{column}{0.48\textwidth}
+            \begin{alertblock}{Sfide Tecniche}
+                \begin{itemize}
+                    \item \textbf{Spettro colorato} dei segnali audio reali che rallenta la convergenza dei filtri fullband (NLMS).
+                    \item \textbf{Identificabilità MIMO:} elevata correlazione tra i canali d'eccitazione.
+                \end{itemize}
+            \end{alertblock}
+        \end{column}
+
+    \end{columns}
+
+   % \vspace{0.3cm}
+
+    \begin{exampleblock}{Algoritmo IMSAF}
+        \begin{itemize}
+            \item \textbf{Filtraggio in sotto-bande (IMSAF)} con banco DFT per appiattire lo spettro e accelerare la convergenza.
+            \item \textbf{Doppia Decorrelazione:}
+                \begin{itemize}
+                    \item \textit{Inter-canale:} modulazione di fase in sotto-bande (trasparente all'udito).
+                    \item \textit{Intra-canale:} pre-sbiancamento temporale tramite predizione lineare.
+                \end{itemize}
+        \end{itemize}
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Architettura del Sistema IMSAF (MIMO)}
+    \begin{figure}[htbp]
+        \centering
+    \input{figures/mimo_diagram_slide.tex}
+    \caption{Schema a blocchi del sistema di identificazione e tracciamento RIR.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Decorrelazione Inter-canale: modulazione di fase}
+    \begin{itemize}
+        \item Per decorrelare i canali si è implementata una \emph{modulazione di fase} in sotto-bande.
+        \item Indicando con $\mathbf{x}_i (k)$ le sottobande del segnale sorgente, le sottobande del segnale decorrelato inviato al canale $l$ sono date da
+            \begin{equation}
+		\left[\mathbf{s}_i(k)\right]_l = \left[\mathbf{x}_i(k)\right]_l\, e^{\mathrm{j}\,\alpha_i \sin\left(2\pi f_l k D / f_s\right)},
+		\qquad f_l = 2\,(l-1)\ \si{\hertz}.
+		\label{eq:phase_mod}
+	        \end{equation}
+        \item I coefficienti $\alpha_i$ sono definiti come
+            \vspace{0.3cm}
+            \begin{table}
+                \begin{tabular}{|c | c | c | c | c | c|}
+                    
+                    \hline
+                    Sottobanda $i$ & $0-3$ & $4$ & $5$ & $6$ & $\geq 7$ \\
+                    \hline
+                    $\alpha_i$ $[$Gradi$]$ & $20\si{\degree}$ & $40\si{\degree}$ & $70\si{\degree}$ & $90\si{\degree}$ & $180\si{\degree}$\\
+                    \hline
+                \end{tabular}
+                \caption{Coefficienti di modulazione di fase al variare dell'indice di sottobanda.}
+            \end{table}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Decorrelazione Intra-canale: predizione lineare}
+    \begin{itemize}
+        \item La modulazione di fase decorrela i diversi canali, ma non agisce sulla correlazione interna a ciascun segnale.
+        \item Per ogni istante $k$ e per ogni sottobanda si raccolgono $P$ vettori nella matrice  $\mathbf{S}_i(k) = [\,\underline{\mathbf{s}}_i(k-1),\, \dots,\, \underline{\mathbf{s}}_i(k-P)\,] \in \mathbb{C}^{LK_i \times P}$.
+        \item I coefficienti di predizione lineare si ottengono come
+            \begin{equation}
+		\mathbf{a}_i(k) = \left(\mathbf{S}_i^{\mathsf{H}}\mathbf{S}_i + \delta_{\mathrm{ap}}\mathbf{I}\right)^{-1} \mathbf{S}_i^{\mathsf{H}}\, \underline{\mathbf{s}}_i(k).
+		\label{eq:pred_coeff}
+	        \end{equation}
+        \item Il segnale sbiancato si ottiene poi da
+            \begin{equation}
+		\underline{\mathbf{u}}_i(k) = \underline{\mathbf{s}}_i(k) - \mathbf{S}_i(k)\,\mathbf{a}_i(k).
+		\label{eq:whitened}
+	\end{equation}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Aggiornamento dei filtri adattativi}
+    \begin{itemize}
+        \item In ciascuna sottobanda, l'errore di predizione è calcolato a partire dal segnale originale
+        \begin{equation}
+		\mathbf{e}_i(k) = \mathbf{y}_i(k) - \hat{\mathbf{H}}_i(k)\,\underline{\mathbf{s}}_i(k).
+		\label{eq:errore}
+	    \end{equation}
+        \item Al contrario, la direzione di aggiornamento dei filtri sfrutta il vettore sbiancato
+            \begin{equation}
+		\hat{\mathbf{H}}_i(k+1) = \hat{\mathbf{H}}_i(k) + \mu_{\mathrm{h}}\, w_i\,
+		\frac{\mathbf{e}_i(k)\,\underline{\mathbf{u}}_i^{\mathsf{H}}(k)}{\lVert\underline{\mathbf{u}}_i(k)\rVert^2 + \delta_{\mathrm{h}}}.
+		\label{eq:update}
+	    \end{equation}
+        \item Per la valutazione dell'accuratezza della stima si è usato il \ac{nm} calcolato tra le norme di Frobenius delle matrici delle RIR\begin{equation}
+		\mathrm{NM} = 20\log_{10} \frac{\lVert\mathbf{H}-\hat{\mathbf{H}}\rVert_F}{\lVert\mathbf{H}\rVert_F},
+		\qquad
+		\lVert\mathbf{A}\rVert_F=\sqrt{\sum_{i,j} \lvert a_{ij}\rvert^2}.
+		\label{eq:nm}
+	\end{equation}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Validazione SISO: scelta del filtro prototipo}
+\begin{columns}[c, totalwidth=\textwidth]
+    \begin{column}{0.38\textwidth}
+        \begin{itemize}
+            \item Prototipi costruiti per $I=64$ sottobande.
+            \item Assunti entrambi di $1025$ campioni.
+            \item Per il filtro di Kaiser si è posto $\beta = 1$, per il filtro Rcos $\beta = 0.6$ e \texttt{span}~pari a $16$.
+            \item Come ingresso al sistema si è assunto rumore bianco.
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+        \begin{figure}[H]
+		\centering
+        \resizebox{\textwidth}{!}{
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=20,
+				ymax=-5, ymin=-45,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.6\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_kaiser.dat};
+				\addlegendentry{Kaiser prototype}
+				\addplot[matlaborange] table {plots/nm_rcos.dat};
+				\addlegendentry{Rcos prototype}
+			\end{axis}
+		\end{tikzpicture}}
+		\caption{Confronto del NM tra i due prototipi.}
+		\label{fig:nm_prot}
+	\end{figure}
+    \end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Scelta del filtro prototipo (ctd.)}
+\begin{columns}[c, totalwidth=\textwidth]
+    \begin{column}{0.38\textwidth}
+        \begin{exampleblock}{Risultati}
+            \begin{itemize}
+                \item Il filtro Rcos ha una transizione più ripida che riduce gli effetti dell'aliasing.
+                \item Il filtro Rcos è complementare in potenza e permette una ricostruzione più fedele in fase di sintesi
+                \item Nelle successive misurazioni, si userà sempre un filtro Rcos come prototipo.
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+        \begin{figure}[H]
+		\centering
+        \resizebox{\textwidth}{!}{
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Prototype Magnitude Response},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Normalized Frequency ($\times\pi$ rad/sample)},
+				ylabel={Magnitude (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=1,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.6\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/mag_kaiser.dat};
+				\addlegendentry{Kaiser prototype}
+				\addplot[matlaborange] table {plots/mag_rcos.dat};
+				\addlegendentry{Rcos prototype}
+			\end{axis}
+		\end{tikzpicture}}
+		\caption{Confronto della risposta in frequenza tra i due prototipi.}
+	\end{figure}
+    \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Sistema MIMO: effetto della decorrelazione intra-canale}
+\begin{columns}[c, totalwidth=\textwidth]
+    \begin{column}{0.38\textwidth}
+        Si è studiato l'impatto del parametro $P$ sul sistema fornendo come ingresso rumore marrone.
+        \begin{block}{Ordine di predizione $P$}
+            \begin{itemize}
+                \item La decorrelazione intra-canale accelera la velocità di convergenza.
+                \item Non modifica significativamente il floor.
+                \item Il floor non è dovuto alla correlazione intra-canale ma, ad esempio, all'aliasing introdotto dal banco.
+            \end{itemize}
+        \end{block}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+        \begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0,
+				x tick label style={/pgf/number format/1000 sep={}},
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.6\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=0.8pt] table [x index=0, y index=1] {plots/nm_decorr_P0_d20.dat};
+				\addlegendentry{P=0}
+				\addplot[matlabblue, line width=0.8pt] table [x index=0, y index=1] {plots/nm_decorr_P2_d20.dat};
+				\addlegendentry{P=2}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto del NM al variare dell'ordine di predizione $P$.}
+		\label{fig:nm_p_comparison}
+	\end{figure}
+    \end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Effetto del numero di sotto-bande}
+    \begin{columns}[c, totalwidth=\textwidth]
+        \begin{column}{0.38\textwidth}
+            \begin{itemize}
+                \item Si è analizzato il comportamento del sistema al variare di $I$, assumendo $D=I/4$.
+                \item Si è considerato un sistema 2x2 con in ingresso un segnale musicale reale, ricampionato a $16\ \si{\kilo\hertz}$.
+                \item Il caso $I=1, D=1$ coincide con il NLMS classico a banda piena e funge da riferimento.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.58\textwidth}
+            \begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Frequency Response Comparison},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Frequency (Hz)},
+				ylabel={Magnitude (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				x tick label style={/pgf/number format/1000 sep={}},
+				xmin=0, xmax=8000,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.6\textwidth,
+				legend pos=south west,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=1.5pt] table {plots/rir_spectrum_real.dat};
+				\addlegendentry{Real RIR}
+				\addplot[matlabblue, line width=0.6pt]   table {plots/rir_spectrum_i1_d1.dat};
+				\addlegendentry{I=1, D=1}
+				\addplot[magenta, line width=0.6pt]   table {plots/rir_spectrum_i8_d2.dat};
+				\addlegendentry{I=8, D=2}
+				\addplot[teal, line width=0.6pt]   table {plots/rir_spectrum_i64_d16.dat};
+				\addlegendentry{I=64, D=16}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto delle risposte in frequenza al variare di $I$.}
+		\label{fig:rir_spectrum_subband_sweep}
+	\end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Effetti del numero di sotto-bande (ctd.)}
+    \begin{columns}[c, totalwidth=\textwidth]
+        \begin{column}{0.38\textwidth}
+            \begin{alertblock}{Numero di sotto-bande $I$}
+                \begin{itemize}
+                    \item Il riferimento è superato da quasi tutte le configurazioni in sotto-bande.
+                    \item Aumentando eccessivamente $I$, ogni sotto-banda ha una porzione di energia inferiore.
+                    \item Per segnali reali, le sotto-bande relative alle alte frequenze vengono stimate con più difficoltà.
+                \end{itemize}
+            \end{alertblock}
+        \end{column}
+        \begin{column}{0.58\textwidth}
+            \begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison (MIMO 2x2)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+                legend columns=2,
+				legend style={font=\sffamily\scriptsize},
+				xmin=0, xmax=30.25,
+				ymax=0, ymin=-30.5,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.7\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_i1_d1.dat};
+				\addlegendentry{I=1, D=1}
+				\addplot[red]   table {plots/nm_i4_d2.dat};
+				\addlegendentry{I=4, D=2}%{I=4, D=1} non converge
+				\addplot[magenta]   table {plots/nm_i8_d2.dat};
+				\addlegendentry{I=8, D=2}
+				\addplot[matlaborange]   table {plots/nm_i16_d4.dat};
+				\addlegendentry{I=16, D=4}
+				\addplot[violet] table {plots/nm_i32_d8.dat};
+				\addlegendentry{I=32, D=8}
+				\addplot[teal]   table {plots/nm_i64_d16.dat};
+				\addlegendentry{I=64, D=16}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{\ac{nm} al variare del numero di sottobande $I$.}
+		\label{fig:nm_subband_sweep}
+	\end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Identificabilità: effetti del numero di altoparlanti}
+    \begin{columns}[c, totalwidth=\textwidth]
+        \begin{column}{0.38\textwidth}
+            Si sono analizzate le prestazioni del sistema con $M=2$ microfoni e un numero crescente di altoparlanti.
+            \begin{exampleblock}{Numero di altoparlanti $L$}
+                \begin{itemize}
+                    \item Più altoparlanti implicano più RIR da estrarre dalle medesime registrazioni.
+                    \item All'aumentare di $L$ si ha un degrado marcato delle prestazioni, poiché si complica il problema dell'Identificabilità.
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+        \begin{column}{0.58\textwidth}
+            \begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison (MIMO 2xL)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=30.25,
+				ymax=0, ymin=-43,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.7\textwidth,
+				legend pos=south west,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_mimo_2x2.dat};
+				\addlegendentry{L=2}
+				\addplot[red]   table {plots/nm_mimo_2x3.dat};
+				\addlegendentry{L=3}
+				\addplot[magenta]   table {plots/nm_mimo_2x4.dat};
+				\addlegendentry{L=4}
+				\addplot[matlaborange]   table {plots/nm_mimo_2x5.dat};
+				\addlegendentry{L=5}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{\ac{nm} all'aumentare del numero di altoparlanti $L$.}
+		\label{fig:nm_l_sweep}
+	\end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Identificabilità: effetti del numero di microfoni}
+    \begin{columns}[c, totalwidth=\textwidth]
+        \begin{column}{0.38\textwidth}
+            Si sono analizzate le prestazioni del sistema con $L=2$ altoparlanti e un numero crescente di microfoni.
+            \begin{block}{Numero di microfoni $M$}
+                \begin{itemize}
+                    \item Per $M > L$ si ha un degrado simile a quello osservato nel caso precedente.
+                    \item Aumentare ulteriormente $M$, tuttavia, non introduce degrado aggiuntivo.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.58\textwidth}
+            \begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={Normalized Misalignment Comparison (MIMO Mx2)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Iteration Time (s)},
+				ylabel={NM (dB)},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=30.25,
+				ymax=0, ymin=-43,
+				ytick distance=5,
+				grid=both,
+				grid style={gray!20},
+				width=0.9\textwidth,
+				height=0.7\textwidth,
+				legend pos=south west,
+				legend cell align=left,
+				tick align=inside,      
+				no markers,
+				font=\sffamily,
+				every axis plot/.append style={line width=1pt}
+				]
+				\addplot[matlabblue]   table {plots/nm_mimo_2x2.dat};
+				\addlegendentry{M=2}
+				\addplot[red]   table {plots/nm_mimo_3x2.dat};
+				\addlegendentry{M=3}
+				\addplot[magenta]   table {plots/nm_mimo_4x2.dat};
+				\addlegendentry{M=4}
+				\addplot[matlaborange]   table {plots/nm_mimo_5x2.dat};
+				\addlegendentry{M=5}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{\ac{nm} all'aumentare del numero di microfoni $M$.}
+		\label{fig:nm_m_sweep}
+	\end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Effetti della lunghezza delle RIR stimate}
+    \begin{itemize}
+        \item Finora si sono considerate unicamente RIR di $K=128$ campioni.
+        \item A $16\ \si{\kilo\hertz}$, corrispondono a $8\ \si{\milli\second}$ e non tengono conto del riverbero introdotto dagli ambienti reali.
+        \item Si è variato $K$ tra $128$ e $4096$ campioni (da $8\ \si{\milli\second}$ a $256\ \si{\milli\second}$), misurando valore del NM dopo $15\ \si{\second}$ e a regime, e il tempo di esecuzione dell'algoritmo.
+    \end{itemize}
+
+    \begin{table}[H]
+		\centering
+		\begin{tabular}{|c|c|c|c|c|}
+			\hline
+			$K$ (tap) & Durata (\si{\milli\second}) & Floor \ac{nm} (\si{\decibel}) & $t_{exec}$ norm. & \ac{nm} a \SI{15}{\second} (\si{\decibel}) \\
+			\hline
+			128  & 8.0   & $-40.5$ & 1.00 & $-34.7$ \\
+			256  & 16.0  & $-34.1$ & 1.31 & $-26.6$ \\
+			512  & 32.0  & $-29.8$ & 1.78 & $-21.7$ \\
+			1024 & 64.0  & $-21.3$ & 2.80 & $-16.7$ \\
+			2048 & 128.0 & $-16.7$ & 6.29 & $-13.2$ \\
+			4096 & 256.0 & $-13.0$ & 9.26 & $-10.3$ \\
+			\hline
+		\end{tabular}
+		\caption{Effetto della lunghezza $K$ della \ac{rir} sul floor del \ac{nm}, sull'accuratezza a \SI{15}{\second} e sul tempo di esecuzione (normalizzato al caso $K = 128$). Configurazione $I = 8$, $D = 2$, $2 \times 2$, $f_s = \SI{16}{\kilo\hertz}$.}
+		\label{tab:rir_length}
+	\end{table}
+\end{frame}
+
+\begin{frame}{Implementazione real-time: setup di misura}
+	\begin{columns}[c, totalwidth=\textwidth]
+		\begin{column}{0.6\textwidth}
+			Strumentazione:
+			\begin{itemize}
+				\item 2 casse Genelec 8020A;
+				\item 2 microfoni a condensatore Behringer B-5;
+				\item Scheda audio Focusrite Scarlet 2i2.
+			\end{itemize}
+
+			\begin{table}[H]
+		\centering
+		\begin{tabular}{|c|c|c|c|}
+			\hline
+			Prova \# & $L\times M$ & $[d_1, d_2]$ & $a$\\
+			\hline
+			1 & 2x2 & \SI{153}{\centi\meter}, \SI{143}{\centi\meter}& \SI{94}{\centi\meter}\\
+			\hline
+			2 & 1x1 & \SI{55}{\centi\meter} & --  \\
+			\hline
+			3 & 2x2 & \SI{25}{\centi\meter} & \SI{50}{\centi\meter} \\
+			\hline
+		\end{tabular}
+		\caption{Configurazioni delle tre prove sperimentali.}
+		\label{tab:prove_lab}
+	\end{table}
+		\end{column}
+		\begin{column}{0.4\textwidth}
+			\begin{figure}
+				\centering
+				\resizebox{0.8\textwidth}{!}{\input{figures/setup_misure.tex}}
+				\caption{Schema del setup di misura.}
+			\end{figure}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Implementazione real-time: latenza e buffer}
+	\begin{itemize}
+		\item La prova 1 non ha prodotto una stima valida a causa della \emph{latenza} della catena audio.
+		\item Il ritardo complessivo del sistema dipende da: \begin{enumerate}
+			\item Dimensione del buffer di ingresso;
+			\item Latenza delle periferiche e filtri di conversione ADC e DAC.
+		\end{enumerate}
+		\item Per limitare l'onere computazionale delle operazioni, nelle configurazioni 2x2 si è dovuto impostare $K=350$.
+	\end{itemize}
+	\vspace{-0.3cm}
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabular}{|c|c|c|c|}
+			\hline
+			Configurazione & Ritardo [campioni] & Tap utili (su 350) & Esito \\
+			\hline
+			buffer 1024 & $> 2000$ & nessuno & stima impossibile \\
+			\hline
+			buffer 16, $d = \SI{1.5}{\meter}$ & $\approx 410$ & nessuno & picco fuori finestra \\
+			\hline
+			buffer 16, $d = 25 \div \SI{55}{\centi\meter}$ & $\approx 250 \div 290$ & $\approx 100$ & stima corretta \\
+			\hline
+		\end{tabular}
+		\caption{Ritardo complessivo e margine residuo del filtro nelle configurazioni provate.}
+		\label{tab:latenza_rt}
+	\end{table}
+\end{frame}
+
+\begin{frame}{Risultati: prova 2 (SISO)}
+	\begin{itemize}
+		\item Nel caso SISO si è potuto porre $K=512$.
+		\item La catena di processing ha introdotto un ritardo di 216 campioni.
+	\end{itemize}
+	\begin{figure}[H]
+		\centering
+		\begin{tikzpicture}
+			\begin{axis}[
+				title={RIR Time Comparison (1x1)},
+				title style={font=\sffamily\bfseries\small},
+				xlabel={Samples},
+				ylabel={Amplitude},
+				label style={font=\sffamily\small},
+				tick label style={font=\sffamily\footnotesize},
+				legend style={font=\sffamily\small},
+				xmin=0, xmax=512,
+				grid=both,
+				grid style={gray!20},
+				width=\textwidth,
+				height=0.35\textwidth,
+				legend pos=north east,
+				legend cell align=left,
+				tick align=inside,
+				no markers,
+				font=\sffamily
+				]
+				\addplot[black, line width=1.1pt] table [x=n, y=misurata] {plots/rir_time_1x1_512.dat};
+				\addlegendentry{Measured RIR}
+				\addplot[matlabblue, line width=0.6pt] table [x=n, y=stimata] {plots/rir_time_1x1_512.dat};
+				\addlegendentry{Estimated RIR}
+			\end{axis}
+		\end{tikzpicture}
+		\caption{Confronto nel tempo tra \ac{rir} misurata e stimata, prova 2 (1x1).}
+		\label{fig:rir_time_1x1_lab}
+	\end{figure}
+\end{frame}
+
+\begin{frame}{Risultati: prova 3 (MIMO)}
+    \begin{figure}
+        \centering
+        \begin{tikzpicture}[font=\sffamily] % <-- 'font' va messo qui in TikZ, se necessario
+            \begin{groupplot}[
+                group style={
+                    group size=2 by 2,
+                    horizontal sep=1.1cm,
+                    vertical sep=0.7cm,
+                    xlabels at=edge bottom,
+                    ylabels at=edge left
+                },
+                xlabel={Samples},
+                ylabel={Amplitude},
+                label style={font=\sffamily\tiny},
+                tick label style={font=\sffamily\tiny},
+                title style={font=\sffamily\bfseries\scriptsize, yshift=-1.2ex},
+                xmin=0, xmax=350,
+                grid=both,
+                grid style={gray!20},
+                width=0.48\textwidth,
+                height=4cm,
+                tick align=inside,
+                no markers,
+                every axis plot/.append style={line width=0.8pt}
+            ]
+                % --- GRAFICO 1: M1 - L1 ---
+                \nextgroupplot[
+                    title={M1 -- L1},
+                    legend style={
+                        font=\sffamily\tiny,
+                        at={(0.03,0.03)},
+                        anchor=south west,
+                        fill=white,
+                        fill opacity=0.85,
+                        text opacity=1,
+                        draw=black!30
+                    },
+                    legend cell align=left
+                ]
+                \addplot[black, line width=0.9pt] table [x=n, y=mic1_L1_mis] {plots/rir_time_2x2_350.dat};
+                \addlegendentry{Measured}
+                \addplot[matlabblue, line width=0.6pt] table [x=n, y=mic1_L1_stima] {plots/rir_time_2x2_350.dat};
+                \addlegendentry{Estimated}
+
+                % --- GRAFICO 2: M1 - L2 ---
+                \nextgroupplot[title={M1 -- L2}]
+                \addplot[black, line width=0.9pt] table [x=n, y=mic1_L2_mis] {plots/rir_time_2x2_350.dat};
+                \addplot[matlabblue, line width=0.6pt] table [x=n, y=mic1_L2_stima] {plots/rir_time_2x2_350.dat};
+
+                % --- GRAFICO 3: M2 - L1 ---
+                \nextgroupplot[title={M2 -- L1}]
+                \addplot[black, line width=0.9pt] table [x=n, y=mic2_L1_mis] {plots/rir_time_2x2_350.dat};
+                \addplot[matlabblue, line width=0.6pt] table [x=n, y=mic2_L1_stima] {plots/rir_time_2x2_350.dat};
+
+                % --- GRAFICO 4: M2 - L2 ---
+                \nextgroupplot[title={M2 -- L2}]
+                \addplot[black, line width=0.9pt] table [x=n, y=mic2_L2_mis] {plots/rir_time_2x2_350.dat};
+                \addplot[matlabblue, line width=0.6pt] table [x=n, y=mic2_L2_stima] {plots/rir_time_2x2_350.dat};
+            \end{groupplot}
+        \end{tikzpicture}
+        \caption{Confronto nel tempo tra RIR misurate e stimate, prova 3 (2x2).}
+        \label{fig:rir_time_2x2_lab}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Risultati: prova 3 (MIMO, ctd.)}
+	\begin{figure}
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        \begin{groupplot}[
+            group style={
+                group size=2 by 2,
+                horizontal sep=1.1cm,
+                vertical sep=0.7cm,
+                xlabels at=edge bottom, % xlabel solo in basso
+                ylabels at=edge left    % ylabel solo a sinistra
+            },
+            xlabel={Frequency (Hz)},
+            ylabel={Magnitude (dB)},
+            label style={font=\sffamily\tiny},
+            tick label style={font=\sffamily\tiny},
+            x tick label style={/pgf/number format/1000 sep={}},
+            title style={font=\sffamily\bfseries\scriptsize, yshift=-1.2ex},
+            xmin=0, xmax=22050,
+            scaled x ticks=false,
+            grid=both,
+            grid style={gray!20},
+            width=0.48\textwidth,
+            height=4cm,           % Altezza ideale per Beamer
+            tick align=inside,
+            no markers,
+            every axis plot/.append style={line width=0.8pt}
+        ]
+            % --- GRAFICO 1: M1 - L1 ---
+            \nextgroupplot[
+                title={M1 -- L1},
+                legend style={
+                    font=\sffamily\tiny,
+                    at={(0.03,0.03)},
+                    anchor=south west,
+                    fill=white,
+                    fill opacity=0.85,
+                    text opacity=1,
+                    draw=black!30
+                },
+                legend cell align=left
+            ]
+            \addplot[black, line width=0.9pt] table [x=f, y=mic1_L1_mis] {plots/rir_freq_2x2_350.dat};
+            \addlegendentry{Measured}
+            \addplot[matlabblue, line width=0.6pt] table [x=f, y=mic1_L1_stima] {plots/rir_freq_2x2_350.dat};
+            \addlegendentry{Estimated}
+
+            % --- GRAFICO 2: M1 - L2 ---
+            \nextgroupplot[title={M1 -- L2}]
+            \addplot[black, line width=0.9pt] table [x=f, y=mic1_L2_mis] {plots/rir_freq_2x2_350.dat};
+            \addplot[matlabblue, line width=0.6pt] table [x=f, y=mic1_L2_stima] {plots/rir_freq_2x2_350.dat};
+
+            % --- GRAFICO 3: M2 - L1 ---
+            \nextgroupplot[title={M2 -- L1}]
+            \addplot[black, line width=0.9pt] table [x=f, y=mic2_L1_mis] {plots/rir_freq_2x2_350.dat};
+            \addplot[matlabblue, line width=0.6pt] table [x=f, y=mic2_L1_stima] {plots/rir_freq_2x2_350.dat};
+
+            % --- GRAFICO 4: M2 - L2 ---
+            \nextgroupplot[title={M2 -- L2}]
+            \addplot[black, line width=0.9pt] table [x=f, y=mic2_L2_mis] {plots/rir_freq_2x2_350.dat};
+            \addplot[matlabblue, line width=0.6pt] table [x=f, y=mic2_L2_stima] {plots/rir_freq_2x2_350.dat};
+        \end{groupplot}
+    \end{tikzpicture}
+    \caption{Confronto in frequenza tra \ac{rir} misurate e stimate, prova 3 (2x2).}
+    \label{fig:rir_freq_2x2_lab}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Conclusioni e sviluppi futuri}
+	\begin{exampleblock}{Conclusioni}
+	\begin{itemize}
+		\item Si è implementato un algoritmo adattativo in sotto bande per la stima della \ac{rir}.
+		\item Tramite MATLAB si è condotta una analisi parametrica di tutte le grandezze configurabili nell'algoritmo e se ne sono analizzati gli effetti.
+		\item Tramite C++ si è validata l'efficacia dell'algoritmo in contesti real-time, confrontando le \ac{rir} stimate dall'algoritmo con quelle misurate.
+	\end{itemize}
+	\end{exampleblock}
+	\begin{block}{Sviluppi futuri}
+		\begin{itemize}
+		\item Tuttavia, negli scenari trattati la \ac{rir} è sempre stata assunta statica, mentre l'algoritmo nasce per il tracciamento di risposte tempo-varianti.
+		\item Una maggiore ottimizzazione dell'implementazione in C++ (ad esempio, considerando la rappresentazione polifase del banco DFT) permetterebbe di tracciare \ac{rir} più lunghe.
+	\end{itemize}
+	\end{block}
+\end{frame}
+\end{document}
