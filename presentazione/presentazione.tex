@@ -88,6 +88,15 @@
     \end{exampleblock}
 \end{frame}
 
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Outline}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
+\section{Descrizione dell'algoritmo}
 \begin{frame}{Architettura del Sistema IMSAF (MIMO)}
     \begin{figure}[htbp]
         \centering
@@ -160,6 +169,7 @@
     \end{itemize}
 \end{frame}
 
+\section{Analisi parametrica}
 \begin{frame}[fragile]{Validazione SISO: scelta del filtro prototipo}
 \begin{columns}[c, totalwidth=\textwidth]
     \begin{column}{0.38\textwidth}
@@ -550,6 +560,7 @@
 	\end{table}
 \end{frame}
 
+\section{Implementazione real-time}
 \begin{frame}{Implementazione real-time: setup di misura}
 	\begin{columns}[c, totalwidth=\textwidth]
 		\begin{column}{0.6\textwidth}
@@ -788,6 +799,7 @@
 \end{figure}
 \end{frame}
 
+\section{Conclusioni}
 \begin{frame}{Conclusioni e sviluppi futuri}
 	\begin{exampleblock}{Conclusioni}
 	\begin{itemize}

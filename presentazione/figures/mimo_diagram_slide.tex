@@ -17,7 +17,7 @@
   \node[blk] (ana1) at (0.7,0) {Banco Analisi\\DFT ($I, \downarrow D$)};
   \node[blk] (pmod) at (3.5,0) {Modulazione\\di Fase ($e^{\mathrm{j}\alpha_i}$)};
   \node[blk] (syn1) at (6.1,0) {Banco Sintesi\\DFT ($I, \uparrow D$)};
-  \node[room] (roomH) at (8.9,0) {Stanza\\$\mathbf{H}(n)$};
+  \node[room] (roomH) at (8.5,0) {Stanza\\$\mathbf{H}(n)$};
   \coordinate (yend) at (10.6,0);
 
   % Frecce Riga 1
@@ -35,8 +35,11 @@
   \node[blk] (ana2) at (7.5,-1.6) {Banco Analisi\\DFT ($I, \downarrow D$)};
   \node[blk] (ana3) at (9.5,-1.6) {Banco Analisi\\DFT ($I, \downarrow D$)};
 
+  \coordinate (tapH) at (ana3 |- 0,0);
+  \fill (tapH) circle (1.2pt);
+
   \draw[sig] (tapS) -- (ana2.north);
-  \draw[sig] (roomH.south) -- (ana3.north);
+  \draw[sig] (tapH) -- (ana3.north);
 
   % ================= RIGA 3 (y = -3.2): NUCLEO IMSAF =================
   \node[imsaf] (pred) at (3.8,-3.2) {Predizione Lineare $P$\\Sbiancamento $\mathbf{u}_i(k)$};

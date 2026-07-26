@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.12.7)  25 JUL 2026 10:38
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.12.7)  26 JUL 2026 09:49
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**c:/Users/mauro/Documents/Uni/MultirateFilterBanks/presentazione/presentazione.tex
-(c:/Users/mauro/Documents/Uni/MultirateFilterBanks/presentazione/presentazione.tex
+**c:/Users/mauro/IMSAF-based-RIR-Tracking/presentazione/presentazione.tex
+(c:/Users/mauro/IMSAF-based-RIR-Tracking/presentazione/presentazione.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-11-14>
 (c:/texlive/2025/texmf-dist/tex/latex/beamer/beamer.cls
@@ -1124,7 +1124,7 @@ Package caption Info: End \AtBeginDocument code.
 Package pgfplots notification 'compat/show suggested version=true': document has been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
 
 (out_dir/presentazione.nav)
-<Logo_Università_Politecnica_delle_Marche.png, id=13, 1003.75pt x 1003.75pt>
+<Logo_Università_Politecnica_delle_Marche.png, id=29, 1003.75pt x 1003.75pt>
 File: Logo_Università_Politecnica_delle_Marche.png Graphic file (type png)
 <use Logo_Università_Politecnica_delle_Marche.png>
 Package pdftex.def Info: Logo_Università_Politecnica_delle_Marche.png  used on input line 46.
@@ -1141,27 +1141,31 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 89.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [2
 
+] (out_dir/presentazione.toc) [3
+
 ] (./figures/mimo_diagram_slide.tex)
-Overfull \vbox (1.76834pt too high) detected at line 97
- []
-
-[3
-
-]
-Overfull \hbox (21.90005pt too wide) in paragraph at lines 122--122
-[][]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 122--122
-
+Overfull \vbox (1.76834pt too high) detected at line 106
  []
 
 [4
 
-] [5
+]
+Overfull \hbox (21.90005pt too wide) in paragraph at lines 131--131
+[][]
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 131--131
+
+ []
+
+[5
 
 ] [6
+
+] [7
+
+] (out_dir/presentazione.toc) [8
 
 ]
 \openout4 = `presentazione.vrb'.
@@ -1176,31 +1180,31 @@ LaTeX Font Info:    Font shape `OT1/zi4/m/n' will be
 PGFPlots: reading {plots/nm_kaiser.dat}
 PGFPlots: reading {plots/nm_rcos.dat}
 )
-Overfull \vbox (2.48927pt too high) detected at line 211
+Overfull \vbox (2.48927pt too high) detected at line 221
  []
 
-[7
+[9
 
 {c:/texlive/2025/texmf-dist/fonts/enc/dvips/inconsolata/i4-ot1-0.enc}]
 PGFPlots: reading {plots/mag_kaiser.dat}
 PGFPlots: reading {plots/mag_rcos.dat}
 
-Overfull \vbox (11.83176pt too high) detected at line 259
+Overfull \vbox (11.83176pt too high) detected at line 269
  []
 
-[8
+[10
 
 ]
 PGFPlots: reading {plots/nm_decorr_P0_d20.dat}
 PGFPlots: reading {plots/nm_decorr_P2_d20.dat}
- [9
+ [11
 
 ]
 PGFPlots: reading {plots/rir_spectrum_real.dat}
 PGFPlots: reading {plots/rir_spectrum_i1_d1.dat}
 PGFPlots: reading {plots/rir_spectrum_i8_d2.dat}
 PGFPlots: reading {plots/rir_spectrum_i64_d16.dat}
- [10
+ [12
 
 ]
 PGFPlots: reading {plots/nm_i1_d1.dat}
@@ -1210,15 +1214,15 @@ PGFPlots: reading {plots/nm_i16_d4.dat}
 PGFPlots: reading {plots/nm_i32_d8.dat}
 PGFPlots: reading {plots/nm_i64_d16.dat}
 
-Overfull \hbox (9.44681pt too wide) in paragraph at lines 417--417
+Overfull \hbox (9.44681pt too wide) in paragraph at lines 427--427
  [] 
  []
 
 
-Overfull \vbox (16.94098pt too high) detected at line 417
+Overfull \vbox (16.94098pt too high) detected at line 427
  []
 
-[11
+[13
 
 ]
 PGFPlots: reading {plots/nm_mimo_2x2.dat}
@@ -1226,15 +1230,15 @@ PGFPlots: reading {plots/nm_mimo_2x3.dat}
 PGFPlots: reading {plots/nm_mimo_2x4.dat}
 PGFPlots: reading {plots/nm_mimo_2x5.dat}
 
-Overfull \hbox (9.5996pt too wide) in paragraph at lines 471--471
+Overfull \hbox (9.5996pt too wide) in paragraph at lines 481--481
  [] 
  []
 
 
-Overfull \vbox (16.9361pt too high) detected at line 471
+Overfull \vbox (16.9361pt too high) detected at line 481
  []
 
-[12
+[14
 
 ]
 PGFPlots: reading {plots/nm_mimo_2x2.dat}
@@ -1242,71 +1246,75 @@ PGFPlots: reading {plots/nm_mimo_3x2.dat}
 PGFPlots: reading {plots/nm_mimo_4x2.dat}
 PGFPlots: reading {plots/nm_mimo_5x2.dat}
 
-Overfull \hbox (11.58571pt too wide) in paragraph at lines 525--525
+Overfull \hbox (11.58571pt too wide) in paragraph at lines 535--535
  [] 
  []
 
 
-Overfull \vbox (16.9361pt too high) detected at line 525
+Overfull \vbox (16.9361pt too high) detected at line 535
  []
 
-[13
+[15
 
 ]
-Overfull \vbox (14.52776pt too high) detected at line 551
- []
-
-[14
-
-] (./figures/setup_misure.tex) [15
-
-]
-Overfull \hbox (6.95914pt too wide) in paragraph at lines 617--617
- [] 
+Overfull \vbox (14.52776pt too high) detected at line 561
  []
 
 [16
 
-]
-PGFPlots: reading {plots/rir_time_1x1_512.dat}
-PGFPlots: reading {plots/rir_time_1x1_512.dat}
+] (out_dir/presentazione.toc) [17
 
-Overfull \vbox (7.52115pt too high) detected at line 655
- []
-
-[17
+] (./figures/setup_misure.tex) [18
 
 ]
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-PGFPlots: reading {plots/rir_time_2x2_350.dat}
-
-Overfull \vbox (19.9517pt too high) detected at line 721
- []
-
-[18
-
-]
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-PGFPlots: reading {plots/rir_freq_2x2_350.dat}
-
-Overfull \vbox (20.62144pt too high) detected at line 789
+Overfull \hbox (6.95914pt too wide) in paragraph at lines 628--628
+ [] 
  []
 
 [19
 
-] [20
+]
+PGFPlots: reading {plots/rir_time_1x1_512.dat}
+PGFPlots: reading {plots/rir_time_1x1_512.dat}
+
+Overfull \vbox (7.52115pt too high) detected at line 666
+ []
+
+[20
+
+]
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+PGFPlots: reading {plots/rir_time_2x2_350.dat}
+
+Overfull \vbox (19.9517pt too high) detected at line 732
+ []
+
+[21
+
+]
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+PGFPlots: reading {plots/rir_freq_2x2_350.dat}
+
+Overfull \vbox (20.62144pt too high) detected at line 800
+ []
+
+[22
+
+] (out_dir/presentazione.toc) [23
+
+] [24
 
 ]
 \tf@nav=\write7
@@ -1324,16 +1332,16 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2025-11-14>
  ***********
 Package rerunfilecheck Info: File `presentazione.out' has not changed.
-(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
+(rerunfilecheck)             Checksum: 6D6C0E140DF0A52C3CCDF1C1A5CB9A79;586.
  ) 
 Here is how much of TeX's memory you used:
- 52760 strings out of 467538
- 1290539 string characters out of 5423725
- 3747319 words of memory out of 5000000
- 80738 multiletter control sequences out of 15000+600000
- 645645 words of font info for 106 fonts, out of 8000000 for 9000
+ 52834 strings out of 467538
+ 1291804 string characters out of 5423725
+ 3751504 words of memory out of 5000000
+ 80792 multiletter control sequences out of 15000+600000
+ 645939 words of font info for 107 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 128i,22n,133p,2589b,2638s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 128i,22n,133p,2579b,2639s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 pdfTeX warning (dest): name{glo:rir} has been referenced but does not exist, replaced by a fixed one
 
@@ -1341,10 +1349,10 @@ pdfTeX warning (dest): name{glo:rir} has been referenced but does not exist, rep
 pdfTeX warning (dest): name{glo:nm} has been referenced but does not exist, replaced by a fixed one
 
 <c:/texlive/2025/texmf-dist/fonts/type1/public/inconsolata/Inconsolata-zi4r.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss12.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmss9.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmssi10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on out_dir/presentazione.pdf (20 pages, 743800 bytes).
+Output written on out_dir/presentazione.pdf (24 pages, 747478 bytes).
 PDF statistics:
- 319 PDF objects out of 1000 (max. 8388607)
- 224 compressed objects within 3 object streams
- 61 named destinations out of 1000 (max. 500000)
- 66 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 375 PDF objects out of 1000 (max. 8388607)
+ 276 compressed objects within 3 object streams
+ 73 named destinations out of 1000 (max. 500000)
+ 98 words of extra memory for PDF output out of 10000 (max. 10000000)
 

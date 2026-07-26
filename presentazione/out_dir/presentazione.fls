@@ -1,8 +1,8 @@
-PWD c:/Users/mauro/Documents/Uni/MultirateFilterBanks/presentazione
+PWD c:/Users/mauro/IMSAF-based-RIR-Tracking/presentazione
 INPUT c:/texlive/2025/texmf.cnf
 INPUT c:/texlive/2025/texmf-dist/web2c/texmf.cnf
 INPUT c:/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT c:/Users/mauro/Documents/Uni/MultirateFilterBanks/presentazione/presentazione.tex
+INPUT c:/Users/mauro/IMSAF-based-RIR-Tracking/presentazione/presentazione.tex
 OUTPUT out_dir/presentazione.log
 INPUT c:/texlive/2025/texmf-dist/tex/latex/beamer/beamer.cls
 INPUT c:/texlive/2025/texmf-dist/tex/latex/beamer/beamer.cls
@@ -559,6 +559,10 @@ INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm5.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmssi10.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmss12.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmssbx10.tfm
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
+INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmssbx10.tfm
 INPUT ./figures/mimo_diagram_slide.tex
 INPUT ./figures/mimo_diagram_slide.tex
 INPUT figures/mimo_diagram_slide.tex
@@ -569,6 +573,9 @@ INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmss9.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx8.tfm
 INPUT c:/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmssi10.tfm
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
 OUTPUT out_dir/presentazione.vrb
 INPUT out_dir/presentazione.vrb
 INPUT out_dir/presentazione.vrb
@@ -621,6 +628,9 @@ INPUT plots/nm_mimo_2x2.dat
 INPUT plots/nm_mimo_3x2.dat
 INPUT plots/nm_mimo_4x2.dat
 INPUT plots/nm_mimo_5x2.dat
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
 INPUT ./figures/setup_misure.tex
 INPUT ./figures/setup_misure.tex
 INPUT figures/setup_misure.tex
@@ -643,6 +653,9 @@ INPUT plots/rir_freq_2x2_350.dat
 INPUT plots/rir_freq_2x2_350.dat
 INPUT plots/rir_freq_2x2_350.dat
 INPUT plots/rir_freq_2x2_350.dat
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
+INPUT out_dir/presentazione.toc
 OUTPUT out_dir/presentazione.nav
 OUTPUT out_dir/presentazione.toc
 OUTPUT out_dir/presentazione.snm
