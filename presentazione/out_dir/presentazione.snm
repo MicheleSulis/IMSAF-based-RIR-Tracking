@@ -11,8 +11,9 @@
 \beamer@slide {fig:nm_l_sweep}{14}
 \beamer@slide {fig:nm_m_sweep}{15}
 \beamer@slide {tab:rir_length}{16}
-\beamer@slide {tab:prove_lab}{18}
-\beamer@slide {tab:latenza_rt}{19}
-\beamer@slide {fig:rir_time_1x1_lab}{20}
-\beamer@slide {fig:rir_time_2x2_lab}{21}
-\beamer@slide {fig:rir_freq_2x2_lab}{22}
+\beamer@slide {tab:prove_lab}{19}
+\beamer@slide {tab:latenza_rt}{21}
+\beamer@slide {fig:rir_time_1x1_lab}{22}
+\beamer@slide {fig:rir_time_2x2_lab}{24}
+\beamer@slide {fig:rir_amp_2x2_lab}{25}
+\beamer@slide {fig:rir_freq_2x2_lab}{26}

@@ -2,5 +2,5 @@
 \babel@toc {italian}{}\relax 
 \beamer@sectionintoc {1}{Descrizione dell'algoritmo}{3}{0}{1}
 \beamer@sectionintoc {2}{Analisi parametrica}{8}{0}{2}
-\beamer@sectionintoc {3}{Implementazione real-time}{17}{0}{3}
-\beamer@sectionintoc {4}{Conclusioni}{23}{0}{4}
+\beamer@sectionintoc {3}{Implementazione real-time}{18}{0}{3}
+\beamer@sectionintoc {4}{Conclusioni}{27}{0}{4}

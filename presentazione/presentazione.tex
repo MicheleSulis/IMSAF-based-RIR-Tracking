@@ -39,6 +39,7 @@
     \includegraphics[width=2cm]{Logo_Università_Politecnica_delle_Marche.png}
 }
 \date{} % Date, can be changed to a custom date
+
 \begin{document}
 
 \begin{frame}
@@ -486,8 +487,8 @@
             Si sono analizzate le prestazioni del sistema con $L=2$ altoparlanti e un numero crescente di microfoni.
             \begin{block}{Numero di microfoni $M$}
                 \begin{itemize}
-                    \item Per $M > L$ si ha un degrado simile a quello osservato nel caso precedente.
-                    \item Aumentare ulteriormente $M$, tuttavia, non introduce degrado aggiuntivo.
+                    \item I floor rientrano tutti in una finestra di \SI{3}{\decibel}.
+                    \item A parità di $L$, il numero di microfoni non incide sull'identificabilità, come atteso.
                 \end{itemize}
             \end{block}
         \end{column}
@@ -538,7 +539,7 @@
     \begin{itemize}
         \item Finora si sono considerate unicamente RIR di $K=128$ campioni.
         \item A $16\ \si{\kilo\hertz}$, corrispondono a $8\ \si{\milli\second}$ e non tengono conto del riverbero introdotto dagli ambienti reali.
-        \item Si è variato $K$ tra $128$ e $4096$ campioni (da $8\ \si{\milli\second}$ a $256\ \si{\milli\second}$), misurando valore del NM dopo $15\ \si{\second}$ e a regime, e il tempo di esecuzione dell'algoritmo.
+        \item Si è variato $K$ tra $128$ e $4096$ campioni (da $8\ \si{\milli\second}$ a $256\ \si{\milli\second}$), misurando il valore del NM dopo $15\ \si{\second}$ e a regime, e il tempo di esecuzione dell'algoritmo.
     \end{itemize}
 
     \begin{table}[H]
@@ -558,6 +559,22 @@
 		\caption{Effetto della lunghezza $K$ della \ac{rir} sul floor del \ac{nm}, sull'accuratezza a \SI{15}{\second} e sul tempo di esecuzione (normalizzato al caso $K = 128$). Configurazione $I = 8$, $D = 2$, $2 \times 2$, $f_s = \SI{16}{\kilo\hertz}$.}
 		\label{tab:rir_length}
 	\end{table}
+\end{frame}
+
+\begin{frame}{Effetti della lunghezza delle RIR stimate (ctd.)}
+    \begin{alertblock}{Lunghezza della RIR $K$}
+        \begin{itemize}
+            \item Negli ambienti reali AEC e SFC richiedono valori di $K$ elevati, poiché la porzione di \ac{rir} non modellata non può essere né cancellata né compensata.
+            \item Allungando $K$ cresce la frazione di coefficienti di ampiezza ridotta, la cui stima è meno accurata: il floor si alza di conseguenza.
+        \end{itemize}
+    \end{alertblock}
+
+    \begin{exampleblock}{Compromesso}
+        \begin{itemize}
+            \item $K$ piccolo $\rightarrow$ floor migliore, coda fuori dal modello.
+            \item $K$ grande $\rightarrow$ coda inclusa, floor peggiore e costo fino a $9\times$.
+        \end{itemize}
+    \end{exampleblock}
 \end{frame}
 
 \section{Implementazione real-time}
@@ -593,6 +610,26 @@
 				\centering
 				\resizebox{0.8\textwidth}{!}{\input{figures/setup_misure.tex}}
 				\caption{Schema del setup di misura.}
+			\end{figure}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Implementazione real-time: setup di misura (ctd.)}
+	\begin{columns}[c, totalwidth=\textwidth]
+		\begin{column}{0.42\textwidth}
+			\begin{block}{Condizioni operative}
+				\begin{itemize}
+					\item Prove condotte nella camera semianecoica ``E. Mattei'' (Audio DSP Lab).
+					\item Tutto il sistema lavora a \SI{44.1}{\kilo\hertz} con una quantizzazione a 32 bit.
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{0.56\textwidth}
+			\begin{figure}
+				\centering
+				\includegraphics[width=0.85\textwidth]{images/2x2_front_tiny}
+				\caption{Setup della prova 3 ($d = \SI{25}{\centi\meter}$, $a = \SI{50}{\centi\meter}$).}
 			\end{figure}
 		\end{column}
 	\end{columns}
@@ -665,6 +702,15 @@
 	\end{figure}
 \end{frame}
 
+\begin{frame}{Risultati: prova 2 (SISO, ctd.)}
+	\begin{block}{Verifica del ritardo}
+		\begin{itemize}
+			\item Picco stimato: campione $287$.
+			\item Volo di \SI{55}{\centi\meter}: $71$ campioni $\;\Rightarrow\;$ latenza $= 287 - 71 = 216$ campioni.
+		\end{itemize}
+	\end{block}
+\end{frame}
+
 \begin{frame}{Risultati: prova 3 (MIMO)}
     \begin{figure}
         \centering
@@ -729,6 +775,65 @@
         \caption{Confronto nel tempo tra RIR misurate e stimate, prova 3 (2x2).}
         \label{fig:rir_time_2x2_lab}
     \end{figure}
+\end{frame}
+
+\begin{frame}{Risultati: prova 3 (MIMO, ctd.)}
+	\begin{figure}
+		\centering
+		\begin{tikzpicture}[font=\sffamily]
+			\begin{groupplot}[
+				group style={
+					group size=2 by 1,
+					horizontal sep=1.1cm,
+					ylabels at=edge left
+				},
+				xlabel={Samples},
+				ylabel={Amplitude},
+				label style={font=\sffamily\tiny},
+				tick label style={font=\sffamily\tiny},
+				title style={font=\sffamily\bfseries\scriptsize, yshift=-1.2ex},
+				xmin=0, xmax=350,
+				grid=both,
+				grid style={gray!20},
+				width=0.48\textwidth,
+				height=3.5cm,
+				tick align=inside,
+				no markers,
+				legend style={
+					font=\sffamily\tiny,
+					at={(0.03,0.97)},
+					anchor=north west,
+					fill=white,
+					fill opacity=0.85,
+					text opacity=1,
+					draw=black!30
+				},
+				legend cell align=left,
+				every axis plot/.append style={line width=0.8pt}
+			]
+				% --- M1 ---
+				\nextgroupplot[title={M1}]
+				\addplot[matlaborange] table [x=n, y=mic1_L1] {plots/rir_amp_2x2_350.dat};
+				\addlegendentry{L1 (diretto)}
+				\addplot[matlabblue] table [x=n, y=mic1_L2] {plots/rir_amp_2x2_350.dat};
+				\addlegendentry{L2 (incrociato)}
+
+				% --- M2 ---
+				\nextgroupplot[title={M2}]
+				\addplot[matlaborange] table [x=n, y=mic2_L2] {plots/rir_amp_2x2_350.dat};
+				\addlegendentry{L2 (diretto)}
+				\addplot[matlabblue] table [x=n, y=mic2_L1] {plots/rir_amp_2x2_350.dat};
+				\addlegendentry{L1 (incrociato)}
+			\end{groupplot}
+		\end{tikzpicture}
+		\caption{\ac{rir} misurate della prova 3, senza normalizzazione.}
+		\label{fig:rir_amp_2x2_lab}
+	\end{figure}
+	\vspace{-0.4cm}
+	\begin{itemize}
+		\item Gli incrociati arrivano con un picco circa sette volte inferiore, per la maggiore distanza percorsa e per il fuori asse di microfoni e altoparlanti.
+		\item Il loro rapporto segnale rumore è quindi peggiore, e la stima ne segue l'andamento con più varianza.
+	\end{itemize}
 \end{frame}
 
 \begin{frame}{Risultati: prova 3 (MIMO, ctd.)}
